@@ -4,3 +4,4 @@ services:
     ports:
       - "9090:3000"
     container_name: mac-monitor
+    restart: unless-stopped
