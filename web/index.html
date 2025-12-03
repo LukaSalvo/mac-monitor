@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mac Monitor Dashboard</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+<h1>Mac Monitor Dashboard</h1>
+
+<label for="interval">Interval:</label>
+<select id="interval">
+  <option value="5">Dernières 5 minutes</option>
+  <option value="10">Dernières 10 minutes</option>
+  <option value="15">Dernières 15 minutes</option>
+  <option value="60">Dernière heure</option>
+  <option value="120">Dernières 2 heures</option>
+  <option value="300">Dernières 5 heures</option>
+</select>
+
+<div id="stats">
+  <p>CPU Usage: <span id="cpu">0%</span></p>
+  <p>Memory Usage: <span id="memory">0 GB / 0 GB</span></p>
+  <p>Disk Usage: <span id="disk">0 GB / 0 GB</span></p>
+  <p>Uptime: <span id="uptime">0s</span></p>
+</div>
+
+<canvas id="cpuChart"></canvas>
+<canvas id="memoryChart"></canvas>
+
+<script src="app.js"></script>
+</body>
+</html>
