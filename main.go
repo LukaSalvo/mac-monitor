@@ -13,10 +13,9 @@ import (
 )
 
 type SystemInfo struct {
-	CPUUsage    float64 `json:"cpu_usage"`
-	MemoryUsed  float64 `json:"memory_used"`
-	MemoryTotal float64 `json:"memory_total"`
-	// Raw byte values for flexible client-side formatting
+	CPUUsage         float64 `json:"cpu_usage"`
+	MemoryUsed       float64 `json:"memory_used"`
+	MemoryTotal      float64 `json:"memory_total"`
 	MemoryUsedBytes  uint64  `json:"memory_used_bytes"`
 	MemoryTotalBytes uint64  `json:"memory_total_bytes"`
 	DiskUsed         float64 `json:"disk_used"`
@@ -27,9 +26,6 @@ type SystemInfo struct {
 	Timestamp        int64   `json:"timestamp"`
 }
 
-var history []SystemInfo
-
-// DiskDevice represents a detected disk/partition with sizes in bytes
 type DiskDevice struct {
 	Device     string `json:"device"`
 	Mountpoint string `json:"mountpoint"`
@@ -38,20 +34,36 @@ type DiskDevice struct {
 	UsedBytes  uint64 `json:"used_bytes"`
 }
 
+var history []SystemInfo
+
 func getSystemInfo() SystemInfo {
 	cpuPercent, _ := cpu.Percent(time.Second, false)
 	vm, _ := mem.VirtualMemory()
-	dk, _ := disk.Usage("/")
 	h, _ := host.Info()
 
-	// Use GiB (1024^3) for more conventional binary-based sizing on desktop OSs.
 	const gib = 1024.0 * 1024.0 * 1024.0
 
+	// Try multiple mount points to find the primary disk
+	// Priority: /System/Volumes/Data (macOS), / (Linux/Unix), /home
+	var dk *disk.UsageStat
+	mountPoints := []string{"/System/Volumes/Data", "/", "/home"}
+
+	for _, mp := range mountPoints {
+		if usage, err := disk.Usage(mp); err == nil && usage.Total > 0 {
+			dk = usage
+			break
+		}
+	}
+
+	// Fallback if no valid disk found
+	if dk == nil {
+		dk = &disk.UsageStat{Total: 0, Used: 0}
+	}
+
 	return SystemInfo{
-		CPUUsage:    cpuPercent[0],
-		MemoryUsed:  float64(vm.Used) / gib,
-		MemoryTotal: float64(vm.Total) / gib,
-		// include raw byte counts so the front-end can choose units dynamically
+		CPUUsage:         cpuPercent[0],
+		MemoryUsed:       float64(vm.Used) / gib,
+		MemoryTotal:      float64(vm.Total) / gib,
 		MemoryUsedBytes:  vm.Used,
 		MemoryTotalBytes: vm.Total,
 		DiskUsed:         float64(dk.Used) / gib,
@@ -68,13 +80,13 @@ func collectMetrics() {
 	for range ticker.C {
 		info := getSystemInfo()
 		history = append(history, info)
+		// Keep last 5 hours of data (300 minutes * 60 seconds)
 		if len(history) > 300*60 {
 			history = history[len(history)-300*60:]
 		}
 	}
 }
 
-// Middleware CORS
 func enableCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -93,10 +105,11 @@ func main() {
 
 	mux := http.NewServeMux()
 
+	// Serve static files
 	fs := http.FileServer(http.Dir("web"))
 	mux.Handle("/", fs)
 
-	// List disks/partitions endpoint
+	// API endpoint: List all disks/partitions
 	mux.HandleFunc("/api/disks", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		parts, err := disk.Partitions(true)
@@ -107,10 +120,9 @@ func main() {
 
 		var devices []DiskDevice
 		for _, p := range parts {
-			// try to get usage for the mountpoint; skip if it fails
 			du, err := disk.Usage(p.Mountpoint)
 			if err != nil {
-				// Some partitions may not be accessible; include basic info with zeros
+				// Include partition even if usage fails
 				devices = append(devices, DiskDevice{
 					Device:     p.Device,
 					Mountpoint: p.Mountpoint,
@@ -132,6 +144,7 @@ func main() {
 		json.NewEncoder(w).Encode(devices)
 	})
 
+	// API endpoint: Get system metrics history
 	mux.HandleFunc("/api/system", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(history)
@@ -139,6 +152,7 @@ func main() {
 
 	handler := enableCORS(mux)
 
-	log.Println("Server running on http://0.0.0.0:3000")
+	log.Println("🚀 Server running on http://0.0.0.0:3000")
+	log.Println("📊 Access dashboard at http://localhost:3000")
 	log.Fatal(http.ListenAndServe(":3000", handler))
 }

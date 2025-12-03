@@ -1,21 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>System Monitor Dashboard</title>
-<link rel="stylesheet" href="style.css">
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>System Monitor Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
+  <!-- Sidebar Navigation -->
   <div class="sidebar">
     <div class="logo">
       <i class="fas fa-chart-line"></i>
       <span>Monitor</span>
     </div>
     <nav class="menu">
-      <a href="#" class="menu-item" data-page="dashboard">
+      <a href="#" class="menu-item active" data-page="dashboard">
         <i class="fas fa-th-large"></i>
         <span>Dashboard</span>
       </a>
@@ -44,7 +45,9 @@
     </div>
   </div>
 
+  <!-- Main Content -->
   <div class="main-content">
+    <!-- Top Bar -->
     <div class="top-bar">
       <h1 id="page-title">System Monitor Dashboard</h1>
       <div class="controls">
@@ -276,10 +279,13 @@
 
     <!-- Disk Page -->
     <div id="disk-page" class="page">
-      <div class="disk-select">
-        <label for="disk-device-select">Choose disk:</label>
+      <div class="disk-select-container">
+        <label for="disk-device-select">
+          <i class="fas fa-hdd"></i> Choose disk:
+        </label>
         <select id="disk-device-select"></select>
       </div>
+
       <div class="metrics-grid">
         <div class="metric-card">
           <div class="metric-header">
@@ -409,28 +415,52 @@
     <div id="settings-page" class="page">
       <div class="settings-grid">
         <div class="settings-card">
-          <h3>Display units</h3>
-          <div>
-            <label><input type="radio" name="unit-pref" value="binary" checked> Binary (KiB, MiB, GiB, 1024)</label>
+          <h3><i class="fas fa-ruler"></i> Display Units</h3>
+          <p>Choose how storage sizes are calculated and displayed</p>
+          <div class="radio-group">
+            <label class="radio-label">
+              <input type="radio" name="unit-pref" value="binary" checked>
+              <span>Binary (KiB, MiB, GiB) - 1024-based</span>
+            </label>
           </div>
-          <div>
-            <label><input type="radio" name="unit-pref" value="decimal"> Decimal (KB, MB, GB, 1000)</label>
-          </div>
-        </div>
-
-        <div class="settings-card">
-          <h3>Default disk</h3>
-          <p>Select which detected disk/volume should be used as the default for the Dashboard.</p>
-          <select id="settings-disk-select" style="width:100%"></select>
-          <div style="margin-top:10px;display:flex;gap:8px;">
-            <button id="save-settings" class="btn">Save</button>
-            <button id="reset-settings" class="btn">Reset</button>
+          <div class="radio-group">
+            <label class="radio-label">
+              <input type="radio" name="unit-pref" value="decimal">
+              <span>Decimal (KB, MB, GB) - 1000-based</span>
+            </label>
           </div>
         </div>
 
         <div class="settings-card">
-          <h3>Info</h3>
-          <p id="settings-info">Preferences are stored locally in your browser.</p>
+          <h3><i class="fas fa-hdd"></i> Default Disk</h3>
+          <p>Select which disk should be displayed in the Dashboard</p>
+          <select id="settings-disk-select" class="settings-select"></select>
+        </div>
+
+        <div class="settings-card">
+          <h3><i class="fas fa-sync-alt"></i> Refresh Rate</h3>
+          <p>How often the dashboard updates automatically</p>
+          <select id="settings-refresh-rate" class="settings-select">
+            <option value="1000">Every 1 second</option>
+            <option value="5000" selected>Every 5 seconds</option>
+            <option value="10000">Every 10 seconds</option>
+            <option value="30000">Every 30 seconds</option>
+          </select>
+        </div>
+
+        <div class="settings-card full-width">
+          <h3><i class="fas fa-info-circle"></i> Information</h3>
+          <p id="settings-info" class="settings-info-text">
+            <i class="fas fa-save"></i> Preferences are stored locally in your browser.
+          </p>
+          <div class="settings-actions">
+            <button id="save-settings" class="btn-primary">
+              <i class="fas fa-check"></i> Save Settings
+            </button>
+            <button id="reset-settings" class="btn-secondary">
+              <i class="fas fa-redo"></i> Reset to Defaults
+            </button>
+          </div>
         </div>
       </div>
     </div>
