@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 	"runtime"
 	"time"
 
@@ -147,6 +148,12 @@ func main() {
 
 	mux := http.NewServeMux()
 
+	// Vérifier que le dossier web existe
+	if _, err := os.Stat("web"); os.IsNotExist(err) {
+		log.Fatal("❌ Le dossier 'web' n'existe pas dans le répertoire courant!")
+	}
+
+	// Servir les fichiers statiques
 	fs := http.FileServer(http.Dir("web"))
 	mux.Handle("/", fs)
 
@@ -221,7 +228,8 @@ func main() {
 	handler := enableCORS(mux)
 
 	log.Println("🚀 Server running on http://0.0.0.0:3000")
-	log.Printf("📊 System: %s - %s cores", runtime.GOOS, runtime.NumCPU())
+	log.Printf("📊 System: %s - %d cores", runtime.GOOS, runtime.NumCPU())
 	log.Println("📡 Dashboard: http://localhost:3000")
+	log.Println("📁 Serving files from: ./web")
 	log.Fatal(http.ListenAndServe(":3000", handler))
 }
