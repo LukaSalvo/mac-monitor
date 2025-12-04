@@ -791,3 +791,112 @@ canvas {
 .btn-export:active {
   transform: translateY(0);
 }
+
+/* ============================================
+   SYSTEM INFO BANNER - NOUVEAU STYLE ESTHÉTIQUE
+   ============================================ */
+
+.system-info-banner {
+  /* MODIFICATION CLÉ POUR LE CENTRAGE HORIZONTAL */
+  display: flex;
+  justify-content: center; /* Centre le groupe de cartes sur la page */
+  
+  align-items: center;
+  gap: 20px;
+  /* Retiré les bordures et les paddings du conteneur parent 
+     pour laisser les cartes individuelles gérer le style. */
+  background: none; 
+  border: none;
+  border-radius: 0;
+  padding: 0; 
+  margin-bottom: 30px;
+  box-shadow: none;
+}
+
+.system-info-item {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  /* Laissez flex: 1; pour qu'ils se partagent l'espace également. */
+  flex: 1; 
+  max-width: 350px; /* Limite la largeur de chaque carte */
+  min-width: 200px; /* Assure une taille minimale */
+  padding: 15px; 
+  background: linear-gradient(135deg, #1a1b1f 0%, #14151a 100%);
+  border-radius: 8px;
+  border: 1px solid #2a2b2f;
+  transition: all 0.3s;
+}
+
+.system-info-item:hover {
+    border-color: #ff6b35;
+    transform: translateY(-2px);
+}
+
+.system-info-item i {
+  font-size: 24px;
+  color: #fff; 
+  background: #ff6b35; 
+  padding: 10px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+/* Couleurs spécifiques pour les icônes */
+.system-info-item:nth-child(1) i { 
+    background: #4ec9b0;
+}
+.system-info-item:nth-child(2) i { 
+    background: #ffd700; 
+}
+.system-info-item:nth-child(3) i { 
+    background: #ff6b35; 
+}
+
+
+.info-label {
+  font-size: 13px;
+  color: #9fa0a4;
+  display: block;
+  margin-bottom: 2px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.info-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+
+  word-break: break-all;
+  
+
+  overflow: hidden;
+  text-overflow: ellipsis; 
+}
+
+/* Vous pouvez aussi vous assurer que la carte hôte n'est pas trop compressée */
+.system-info-item:nth-child(2) {
+    /* Donne un peu plus de place à la carte Hostname si les autres sont plus courtes */
+    flex: 1.5; 
+}
+
+/* S'assurer que le conteneur du texte peut masquer le débordement */
+.system-info-item > div {
+    /* Ceci est le conteneur direct des spans info-label et info-value */
+    min-width: 0; 
+}
+
+/* Responsive : sur petits écrans, empilez les cartes et centrez-les */
+@media (max-width: 1000px) {
+  .system-info-banner {
+    flex-direction: column; /* Empile les cartes verticalement */
+    gap: 15px; /* Réduit l'espace entre les cartes empilées */
+  }
+  .system-info-item {
+    flex: none; /* Désactive la répartition égale de l'espace */
+    width: 100%; /* Occupe toute la largeur du conteneur parent */
+    max-width: 600px; /* Maintient une taille maximale sur les écrans moyens/petits */
+  }
+}

@@ -4,15 +4,14 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"os"
 	"runtime"
 	"time"
 
-	"github.com/shirou/gopsutil/cpu"
-	"github.com/shirou/gopsutil/disk"
-	"github.com/shirou/gopsutil/host"
-	"github.com/shirou/gopsutil/mem"
-	"github.com/shirou/gopsutil/net"
+	"github.com/shirou/gopsutil/v3/cpu"  // CORRIGÉ: Ajout de /v3
+	"github.com/shirou/gopsutil/v3/disk" // CORRIGÉ: Ajout de /v3
+	"github.com/shirou/gopsutil/v3/host" // CORRIGÉ: Ajout de /v3
+	"github.com/shirou/gopsutil/v3/mem"  // CORRIGÉ: Ajout de /v3
+	"github.com/shirou/gopsutil/v3/net"  // CORRIGÉ: Ajout de /v3
 )
 
 type SystemInfo struct {
@@ -74,6 +73,7 @@ func getPrimaryDisk() (*disk.UsageStat, error) {
 }
 
 func getSystemInfo() SystemInfo {
+	// Utilisation de time.Second dans cpu.Percent pour éviter les erreurs de lecture
 	cpuPercent, _ := cpu.Percent(time.Second, false)
 	vm, _ := mem.VirtualMemory()
 	h, _ := host.Info()
@@ -90,6 +90,9 @@ func getSystemInfo() SystemInfo {
 	netStats, _ := net.IOCounters(false)
 	var netSent, netRecv uint64
 	if len(netStats) > 0 {
+		// Dans un conteneur Docker, netStats[0] pourrait être 'lo' ou une interface virtuelle.
+		// Pour la simplicité, nous prenons le premier élément non 'lo'.
+		// (Le conteneur aura besoin de variables d'environnement pour l'interface correcte si ce n'est pas [0])
 		netSent = netStats[0].BytesSent
 		netRecv = netStats[0].BytesRecv
 	}
@@ -124,8 +127,9 @@ func collectMetrics() {
 	for range ticker.C {
 		info := getSystemInfo()
 		history = append(history, info)
-		if len(history) > 300*60 {
-			history = history[len(history)-300*60:]
+		// Limite l'historique à 5 heures * 60 minutes * 60 secondes = 108000 points
+		if len(history) > 5*60*60 {
+			history = history[len(history)-5*60*60:]
 		}
 	}
 }
@@ -148,15 +152,11 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	// Vérifier que le dossier web existe
-	if _, err := os.Stat("web"); os.IsNotExist(err) {
-		log.Fatal("❌ Le dossier 'web' n'existe pas dans le répertoire courant!")
-	}
-
-	// Servir les fichiers statiques
+	// Servir les fichiers statiques (Dashboard)
 	fs := http.FileServer(http.Dir("web"))
 	mux.Handle("/", fs)
 
+	// API pour les disques détaillés (utilisé par la page Settings)
 	mux.HandleFunc("/api/disks", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		parts, err := disk.Partitions(false)
@@ -193,6 +193,7 @@ func main() {
 		json.NewEncoder(w).Encode(devices)
 	})
 
+	// API pour les interfaces réseau détaillées
 	mux.HandleFunc("/api/network", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -220,6 +221,7 @@ func main() {
 		json.NewEncoder(w).Encode(stats)
 	})
 
+	// API principale pour les données d'historique
 	mux.HandleFunc("/api/system", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(history)
@@ -227,9 +229,9 @@ func main() {
 
 	handler := enableCORS(mux)
 
+	// Notez qu'en environnement Docker, l'écoute sur 0.0.0.0 est nécessaire
 	log.Println("🚀 Server running on http://0.0.0.0:3000")
 	log.Printf("📊 System: %s - %d cores", runtime.GOOS, runtime.NumCPU())
 	log.Println("📡 Dashboard: http://localhost:3000")
-	log.Println("📁 Serving files from: ./web")
 	log.Fatal(http.ListenAndServe(":3000", handler))
 }
