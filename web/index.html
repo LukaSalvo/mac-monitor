@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>System Monitor Dashboard</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <div class="sidebar">
+    <div class="logo">
+      <i class="fas fa-chart-line"></i>
+      <span>Monitor</span>
+    </div>
+    <nav class="menu">
+      <a href="#" class="menu-item" data-page="dashboard">
+        <i class="fas fa-th-large"></i>
+        <span>Dashboard</span>
+      </a>
+      <a href="#" class="menu-item" data-page="cpu">
+        <i class="fas fa-microchip"></i>
+        <span>CPU</span>
+      </a>
+      <a href="#" class="menu-item" data-page="memory">
+        <i class="fas fa-memory"></i>
+        <span>Memory</span>
+      </a>
+      <a href="#" class="menu-item" data-page="disk">
+        <i class="fas fa-hdd"></i>
+        <span>Disk</span>
+      </a>
+      <a href="#" class="menu-item" data-page="uptime">
+        <i class="fas fa-clock"></i>
+        <span>Uptime</span>
+      </a>
+      <a href="#" class="menu-item" data-page="network">
+        <i class="fas fa-network-wired"></i>
+        <span>Network</span>
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <a href="#" class="menu-item" data-page="settings">
+        <i class="fas fa-cog"></i>
+        <span>Settings</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="main-content">
+    <div class="top-bar">
+      <h1 id="page-title">System Monitor Dashboard</h1>
+      <div class="controls">
+        <label for="interval">Time Range:</label>
+        <select id="interval">
+          <option value="5">Last 5 minutes</option>
+          <option value="10">Last 10 minutes</option>
+          <option value="15">Last 15 minutes</option>
+          <option value="60">Last hour</option>
+          <option value="120">Last 2 hours</option>
+          <option value="300">Last 5 hours</option>
+        </select>
+        <button id="export-json" class="btn-export">
+          <i class="fas fa-download"></i> Export JSON
+        </button>
+        <button id="refresh" class="btn-refresh">
+          <i class="fas fa-sync-alt"></i>
+        </button>
+      </div>
+    </div>
+
+    <div id="dashboard-page" class="page active">
+      <div class="system-info-banner">
+        <div class="system-info-banner">
+      <div class="system-info-item">
+        <i class="fas fa-desktop"></i>
+        <div>
+          <span class="info-label">System</span>
+          <span class="info-value" id="sys-platform">Loading...</span>
+        </div>
+      </div>
+      <div class="system-info-item">
+        <i class="fas fa-server"></i>
+        <div>
+          <span class="info-label">Hostname</span>
+          <span class="info-value" id="sys-hostname">Loading...</span>
+        </div>
+      </div>
+      <div class="system-info-item">
+        <i class="fas fa-microchip"></i>
+        <div>
+          <span class="info-label">CPU Cores</span>
+          <span class="info-value" id="sys-cores">0</span>
+        </div>
+      </div>
+    </div>
+      </div>
+
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-header">
+            <i class="fas fa-microchip"></i>
+            <span>CPU Usage</span>
+          </div>
+          <div class="metric-value" id="cpu">0%</div>
+          <div class="metric-footer">Real-time</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-header">
+            <i class="fas fa-memory"></i>
+            <span>Memory</span>
+          </div>
+          <div class="metric-value" id="memory">0 GB / 0 GB</div>
+          <div class="metric-footer">RAM Usage</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-header">
+            <i class="fas fa-hdd"></i>
+            <span>Disk Space</span>
+          </div>
+          <div class="metric-value" id="disk">0 GB / 0 GB</div>
+          <div class="metric-footer">Storage</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-header">
+            <i class="fas fa-clock"></i>
+            <span>System Uptime</span>
+          </div>
+          <div class="metric-value" id="uptime">0s</div>
+          <div class="metric-footer">Running time</div>
+        </div>
+      </div>
+
+      <div class="charts-grid">
+        <div class="chart-card">
+          <div class="chart-header">
+            <h3><i class="fas fa-microchip"></i> CPU Usage Over Time</h3>
+          </div>
+          <canvas id="cpuChart"></canvas>
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-header">
+            <h3><i class="fas fa-memory"></i> Memory Usage Over Time</h3>
+          </div>
+          <canvas id="memoryChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div id="cpu-page" class="page">
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-header">
+            <i class="fas fa-microchip"></i>
+            <span>Current CPU Usage</span>
+          </div>
+          <div class="metric-value" id="cpu-current">0%</div>
+          <div class="metric-footer">Real-time</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-header">
+            <i class="fas fa-chart-line"></i>
+            <span>Average CPU</span>
+          </div>
+          <div class="metric-value" id="cpu-avg">0%</div>
+          <div class="metric-footer">Period average</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-header">
+            <i class="fas fa-arrow-up"></i>
+            <span>Peak CPU</span>
+          </div>
+          <div class="metric-value" id="cpu-max">0%</div>
+          <div class="metric-footer">Maximum reached</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-header">
+            <i class="fas fa-arrow-down"></i>
+            <span>Minimum CPU</span>
+          </div>
+          <div class="metric-value" id="cpu-min">0%</div>
+          <div class="metric-footer">Minimum reached</div>
+        </div>
+      </div>
+
+      <div class="charts-grid">
+        <div class="chart-card full-width">
+          <div class="chart-header">
+            <h3><i class="fas fa-microchip"></i> CPU Usage Timeline</h3>
+          </div>
+          <canvas id="cpuDetailChart"></canvas>
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-header">
+            <h3><i class="fas fa-chart-pie"></i> CPU Load Distribution</h3>
+          </div>
+          <canvas id="cpuDistChart"></canvas>
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-header">
+            <h3><i class="fas fa-chart-bar"></i> CPU Statistics</h3>
+          </div>
+          <div class="stats-container">
+            <div class="stat-item">
+              <span class="stat-label">Time above 80%:</span>
+              <span class="stat-value" id="cpu-high">0%</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Time between 50-80%:</span>
+              <span class="stat-value" id="cpu-medium">0%</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Time below 50%:</span>
+              <span class="stat-value" id="cpu-low">0%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="memory-page" class="page">
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-header">
+            <i class="fas fa-memory"></i>
+            <span>Used Memory</span>
+          </div>
+          <div class="metric-value" id="mem-used">0 GB</div>
+          <div class="metric-footer" id="mem-percent">0%</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-header">
+            <i class="fas fa-microchip"></i>
+            <span>Total Memory</span>
+          </div>
+          <div class="metric-value" id="mem-total">0 GB</div>
+          <div class="metric-footer">Installed RAM</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-header">
+            <i class="fas fa-arrow-up"></i>
+            <span>Peak Usage</span>
+          </div>
+          <div class="metric-value" id="mem-max">0 GB</div>
+          <div class="metric-footer">Maximum reached</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-header">
+            <i class="fas fa-chart-line"></i>
+            <span>Average Usage</span>
+          </div>
+          <div class="metric-value" id="mem-avg">0 GB</div>
+          <div class="metric-footer">Period average</div>
+        </div>
+      </div>
+
+      <div class="charts-grid">
+        <div class="chart-card full-width">
+          <div class="chart-header">
+            <h3><i class="fas fa-memory"></i> Memory Usage Timeline</h3>
+          </div>
+          <canvas id="memDetailChart"></canvas>
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-header">
+            <h3><i class="fas fa-chart-pie"></i> Memory Allocation</h3>
+          </div>
+          <canvas id="memPieChart"></canvas>
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-header">
+            <h3><i class="fas fa-info-circle"></i> Memory Info</h3>
+          </div>
+          <div class="stats-container">
+            <div class="stat-item">
+              <span class="stat-label">Available:</span>
+              <span class="stat-value" id="mem-available">0 GB</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Growth rate:</span>
+              <span class="stat-value" id="mem-growth">0 MB/min</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Estimated full:</span>
+              <span class="stat-value" id="mem-estimate">Never</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="disk-page" class="page">
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-header">
+            <i class="fas fa-hdd"></i>
+            <span>Used Space</span>
+          </div>
+          <div class="metric-value" id="disk-used">0 GB</div>
+          <div class="metric-footer" id="disk-percent">0%</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-header">
+            <i class="fas fa-database"></i>
+            <span>Total Space</span>
+          </div>
+          <div class="metric-value" id="disk-total">0 GB</div>
+          <div class="metric-footer">Storage capacity</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-header">
+            <i class="fas fa-check-circle"></i>
+            <span>Free Space</span>
+          </div>
+          <div class="metric-value" id="disk-free">0 GB</div>
+          <div class="metric-footer">Available</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-header">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span>Status</span>
+          </div>
+          <div class="metric-value" id="disk-status">OK</div>
+          <div class="metric-footer">Health status</div>
+        </div>
+      </div>
+
+      <div class="charts-grid">
+        <div class="chart-card">
+          <div class="chart-header">
+            <h3><i class="fas fa-chart-pie"></i> Disk Space Allocation</h3>
+          </div>
+          <canvas id="diskPieChart"></canvas>
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-header">
+            <h3><i class="fas fa-chart-bar"></i> Space Breakdown</h3>
+          </div>
+          <canvas id="diskBarChart"></canvas>
+        </div>
+      </div>
+
+      <div class="alert-box">
+        <i class="fas fa-info-circle"></i>
+        <div>
+          <strong>Storage Information</strong>
+          <p id="disk-info">Monitor your disk usage to prevent storage issues.</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="uptime-page" class="page">
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-header">
+            <i class="fas fa-clock"></i>
+            <span>Current Uptime</span>
+          </div>
+          <div class="metric-value" id="uptime-current">0s</div>
+          <div class="metric-footer">System running</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-header">
+            <i class="fas fa-calendar"></i>
+            <span>Days</span>
+          </div>
+          <div class="metric-value" id="uptime-days">0</div>
+          <div class="metric-footer">Total days</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-header">
+            <i class="fas fa-hourglass-half"></i>
+            <span>Hours</span>
+          </div>
+          <div class="metric-value" id="uptime-hours">0</div>
+          <div class="metric-footer">Today's hours</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-header">
+            <i class="fas fa-stopwatch"></i>
+            <span>Minutes</span>
+          </div>
+          <div class="metric-value" id="uptime-minutes">0</div>
+          <div class="metric-footer">Current hour</div>
+        </div>
+      </div>
+
+      <div class="uptime-visual">
+        <div class="uptime-circle">
+          <svg viewBox="0 0 200 200">
+            <circle cx="100" cy="100" r="90" class="uptime-circle-bg"/>
+            <circle cx="100" cy="100" r="90" class="uptime-circle-progress" id="uptime-circle"/>
+          </svg>
+          <div class="uptime-text">
+            <div class="uptime-percentage" id="uptime-reliability">100%</div>
+            <div class="uptime-label">Reliability</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="alert-box success">
+        <i class="fas fa-check-circle"></i>
+        <div>
+          <strong>System Status: Operational</strong>
+          <p id="uptime-message">Your system has been running smoothly.</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="network-page" class="page">
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-header">
+            <i class="fas fa-arrow-alt-circle-up"></i>
+            <span>Total Sent</span>
+          </div>
+          <div class="metric-value" id="net-sent">0 B</div>
+          <div class="metric-footer">Bytes uploaded since boot</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-header">
+            <i class="fas fa-arrow-alt-circle-down"></i>
+            <span>Total Received</span>
+          </div>
+          <div class="metric-value" id="net-recv">0 B</div>
+          <div class="metric-footer">Bytes downloaded since boot</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-header">
+            <i class="fas fa-upload"></i>
+            <span>Upload Speed</span>
+          </div>
+          <div class="metric-value" id="net-up-speed">0 B/s</div>
+          <div class="metric-footer">Average over the last 10s</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-header">
+            <i class="fas fa-download"></i>
+            <span>Download Speed</span>
+          </div>
+          <div class="metric-value" id="net-down-speed">0 B/s</div>
+          <div class="metric-footer">Average over the last 10s</div>
+        </div>
+      </div>
+
+      <div class="charts-grid">
+        <div class="chart-card full-width">
+          <div class="chart-header">
+            <h3><i class="fas fa-network-wired"></i> Network Traffic Timeline (KB/s)</h3>
+          </div>
+          <canvas id="networkChart"></canvas>
+        </div>
+      </div>
+      
+      <div class="chart-card full-width" id="network-interfaces">
+        <div class="chart-header">
+          <h3><i class="fas fa-list"></i> Interface Details</h3>
+        </div>
+        <p style="padding: 20px; color: #9fa0a4;">Loading network interfaces...</p>
+      </div>
+    </div>
+
+    <div id="settings-page" class="page">
+      <div class="settings-grid">
+        <div class="settings-card">
+          <h3><i class="fas fa-ruler"></i> Display Units</h3>
+          <p>Choose how storage sizes are calculated and displayed</p>
+          <div class="radio-group">
+            <label class="radio-label">
+              <input type="radio" name="unit-pref" value="binary" checked>
+              <span>Binary (KiB, MiB, GiB) - 1024-based</span>
+            </label>
+          </div>
+          <div class="radio-group">
+            <label class="radio-label">
+              <input type="radio" name="unit-pref" value="decimal">
+              <span>Decimal (KB, MB, GB) - 1000-based</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="settings-card">
+          <h3><i class="fas fa-hdd"></i> Default Disk</h3>
+          <p>Select which disk should be displayed in the Dashboard</p>
+          <select id="settings-disk-select" class="settings-select"></select>
+        </div>
+
+        <div class="settings-card">
+          <h3><i class="fas fa-sync-alt"></i> Refresh Rate</h3>
+          <p>How often the dashboard updates automatically</p>
+          <select id="settings-refresh-rate" class="settings-select">
+            <option value="1000">Every 1 second</option>
+            <option value="5000" selected>Every 5 seconds</option>
+            <option value="10000">Every 10 seconds</option>
+            <option value="30000">Every 30 seconds</option>
+          </select>
+        </div>
+
+        <div class="settings-card full-width">
+          <h3><i class="fas fa-info-circle"></i> Information</h3>
+          <p id="settings-info" class="settings-info-text">
+            <i class="fas fa-save"></i> Preferences are stored locally in your browser.
+          </p>
+          <div class="settings-actions">
+            <button id="save-settings" class="btn-primary">
+              <i class="fas fa-check"></i> Save Settings
+            </button>
+            <button id="reset-settings" class="btn-secondary">
+              <i class="fas fa-redo"></i> Reset to Defaults
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
