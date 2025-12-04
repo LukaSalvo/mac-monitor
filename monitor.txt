@@ -1,0 +1,2 @@
+➜  mac-monitor git:(main) ✗ monitor-stop
+➜  mac-monitor git:(main) ✗ monitor-start
