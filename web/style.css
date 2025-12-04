@@ -13,9 +13,7 @@ body {
   overflow: hidden;
 }
 
-/* ============================================
-   SIDEBAR NAVIGATION
-   ============================================ */
+/* Sidebar */
 .sidebar {
   width: 250px;
   background-color: #111217;
@@ -23,7 +21,6 @@ body {
   display: flex;
   flex-direction: column;
   padding: 20px 0;
-  flex-shrink: 0;
 }
 
 .logo {
@@ -83,9 +80,7 @@ body {
   padding-top: 20px;
 }
 
-/* ============================================
-   MAIN CONTENT
-   ============================================ */
+/* Main Content */
 .main-content {
   flex: 1;
   overflow-y: auto;
@@ -123,19 +118,14 @@ body {
   color: #d8d9da;
   border: 1px solid #2a2b2f;
   padding: 8px 15px;
-  border-radius: 6px;
+  border-radius: 4px;
   font-size: 14px;
   cursor: pointer;
   outline: none;
-  transition: border-color 0.2s;
 }
 
 .controls select:hover {
   border-color: #3a3b3f;
-}
-
-.controls select:focus {
-  border-color: #ff6b35;
 }
 
 .btn-refresh {
@@ -143,24 +133,22 @@ body {
   color: #fff;
   border: none;
   padding: 8px 15px;
-  border-radius: 6px;
+  border-radius: 4px;
   cursor: pointer;
   font-size: 16px;
-  transition: all 0.2s;
+  transition: background-color 0.2s;
 }
 
 .btn-refresh:hover {
   background-color: #ff5522;
-  transform: scale(1.05);
 }
 
 .btn-refresh:active {
   transform: rotate(180deg);
+  transition: transform 0.3s;
 }
 
-/* ============================================
-   PAGES
-   ============================================ */
+/* Pages */
 .page {
   display: none;
   animation: fadeIn 0.3s ease-in;
@@ -181,9 +169,7 @@ body {
   }
 }
 
-/* ============================================
-   METRICS GRID
-   ============================================ */
+/* Metrics Grid */
 .metrics-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -194,15 +180,15 @@ body {
 .metric-card {
   background: linear-gradient(135deg, #1a1b1f 0%, #111217 100%);
   border: 1px solid #2a2b2f;
-  border-radius: 12px;
-  padding: 24px;
+  border-radius: 8px;
+  padding: 20px;
   transition: all 0.3s;
 }
 
 .metric-card:hover {
   border-color: #ff6b35;
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(255, 107, 53, 0.15);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(255, 107, 53, 0.1);
 }
 
 .metric-header {
@@ -211,11 +197,11 @@ body {
   gap: 10px;
   color: #9fa0a4;
   font-size: 14px;
-  margin-bottom: 16px;
+  margin-bottom: 15px;
 }
 
 .metric-header i {
-  font-size: 20px;
+  font-size: 18px;
   color: #ff6b35;
 }
 
@@ -223,19 +209,16 @@ body {
   font-size: 32px;
   font-weight: 600;
   color: #fff;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   word-break: break-word;
-  line-height: 1.2;
 }
 
 .metric-footer {
   color: #6b6c70;
-  font-size: 13px;
+  font-size: 12px;
 }
 
-/* ============================================
-   CHARTS GRID
-   ============================================ */
+/* Charts Grid */
 .charts-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
@@ -246,13 +229,8 @@ body {
 .chart-card {
   background: linear-gradient(135deg, #1a1b1f 0%, #111217 100%);
   border: 1px solid #2a2b2f;
-  border-radius: 12px;
-  padding: 24px;
-  transition: border-color 0.3s;
-}
-
-.chart-card:hover {
-  border-color: #3a3b3f;
+  border-radius: 8px;
+  padding: 20px;
 }
 
 .chart-card.full-width {
@@ -281,9 +259,7 @@ canvas {
   height: 300px !important;
 }
 
-/* ============================================
-   STATS CONTAINER
-   ============================================ */
+/* Stats Container */
 .stats-container {
   padding: 20px;
 }
@@ -292,7 +268,7 @@ canvas {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 0;
+  padding: 15px 0;
   border-bottom: 1px solid #2a2b2f;
 }
 
@@ -311,13 +287,11 @@ canvas {
   font-weight: 600;
 }
 
-/* ============================================
-   ALERT BOX
-   ============================================ */
+/* Alert Box */
 .alert-box {
   display: flex;
   align-items: flex-start;
-  gap: 16px;
+  gap: 15px;
   background-color: #1a1b1f;
   border: 1px solid #2a2b2f;
   border-left: 4px solid #ff6b35;
@@ -343,20 +317,16 @@ canvas {
 .alert-box strong {
   color: #fff;
   display: block;
-  margin-bottom: 8px;
-  font-size: 16px;
+  margin-bottom: 5px;
 }
 
 .alert-box p {
   color: #9fa0a4;
   margin: 0;
-  line-height: 1.6;
-  font-size: 14px;
+  line-height: 1.5;
 }
 
-/* ============================================
-   UPTIME VISUAL
-   ============================================ */
+/* Uptime Visual */
 .uptime-visual {
   display: flex;
   justify-content: center;
@@ -366,8 +336,8 @@ canvas {
 
 .uptime-circle {
   position: relative;
-  width: 280px;
-  height: 280px;
+  width: 250px;
+  height: 250px;
 }
 
 .uptime-circle svg {
@@ -379,13 +349,13 @@ canvas {
 .uptime-circle-bg {
   fill: none;
   stroke: #2a2b2f;
-  stroke-width: 12;
+  stroke-width: 10;
 }
 
 .uptime-circle-progress {
   fill: none;
   stroke: #4ec9b0;
-  stroke-width: 12;
+  stroke-width: 10;
   stroke-linecap: round;
   stroke-dasharray: 565;
   stroke-dashoffset: 0;
@@ -401,65 +371,69 @@ canvas {
 }
 
 .uptime-percentage {
-  font-size: 52px;
+  font-size: 48px;
   font-weight: 700;
   color: #fff;
-  margin-bottom: 8px;
+  margin-bottom: 5px;
 }
 
 .uptime-label {
-  font-size: 18px;
+  font-size: 16px;
   color: #9fa0a4;
-  font-weight: 500;
 }
 
-/* ============================================
-   DISK SELECT
-   ============================================ */
-.disk-select-container {
-  margin-bottom: 24px;
-  background: linear-gradient(135deg, #1a1b1f 0%, #111217 100%);
-  border: 1px solid #2a2b2f;
-  border-radius: 12px;
-  padding: 20px;
-  display: flex;
-  align-items: center;
-  gap: 15px;
+/* Scrollbar */
+.main-content::-webkit-scrollbar {
+  width: 8px;
 }
 
-.disk-select-container label {
-  color: #d8d9da;
-  font-size: 15px;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.main-content::-webkit-scrollbar-track {
+  background: #111217;
 }
 
-.disk-select-container label i {
-  color: #ff6b35;
-  font-size: 18px;
+.main-content::-webkit-scrollbar-thumb {
+  background: #2a2b2f;
+  border-radius: 4px;
 }
 
-.disk-select-container select {
-  flex: 1;
-  background-color: #111217;
-  color: #d8d9da;
-  border: 1px solid #2a2b2f;
-  padding: 10px 15px;
-  border-radius: 6px;
-  font-size: 14px;
-  cursor: pointer;
-  outline: none;
-  transition: border-color 0.2s;
+.main-content::-webkit-scrollbar-thumb:hover {
+  background: #3a3b3f;
 }
 
-.disk-select-container select:hover {
-  border-color: #3a3b3f;
+/* Responsive */
+@media (max-width: 1200px) {
+  .charts-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
-.disk-select-container select:focus {
-  border-color: #ff6b35;
+@media (max-width: 768px) {
+  .sidebar {
+    width: 70px;
+  }
+
+  .logo span,
+  .menu-item span {
+    display: none;
+  }
+
+  .logo {
+    justify-content: center;
+  }
+
+  .menu-item {
+    justify-content: center;
+  }
+
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .top-bar {
+    flex-direction: column;
+    gap: 15px;
+    align-items: flex-start;
+  }
 }
 
 /* ============================================
@@ -624,85 +598,4 @@ canvas {
 
 .btn-secondary:active {
   transform: translateY(0);
-}
-
-/* ============================================
-   SCROLLBAR
-   ============================================ */
-.main-content::-webkit-scrollbar {
-  width: 10px;
-}
-
-.main-content::-webkit-scrollbar-track {
-  background: #111217;
-}
-
-.main-content::-webkit-scrollbar-thumb {
-  background: #2a2b2f;
-  border-radius: 6px;
-}
-
-.main-content::-webkit-scrollbar-thumb:hover {
-  background: #3a3b3f;
-}
-
-/* ============================================
-   RESPONSIVE DESIGN
-   ============================================ */
-@media (max-width: 1200px) {
-  .charts-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 768px) {
-  .sidebar {
-    width: 70px;
-  }
-
-  .logo span,
-  .menu-item span {
-    display: none;
-  }
-
-  .logo {
-    justify-content: center;
-  }
-
-  .menu-item {
-    justify-content: center;
-  }
-
-  .metrics-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .top-bar {
-    flex-direction: column;
-    gap: 15px;
-    align-items: flex-start;
-  }
-
-  .settings-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .disk-select-container {
-    flex-direction: column;
-    align-items: stretch;
-  }
-}
-
-@media (max-width: 480px) {
-  .main-content {
-    padding: 15px;
-  }
-
-  .metric-value {
-    font-size: 24px;
-  }
-
-  .top-bar h1 {
-    font-size: 22px;
-  }
 }

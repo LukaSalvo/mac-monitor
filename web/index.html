@@ -1,22 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>System Monitor Dashboard</title>
-  <link rel="stylesheet" href="style.css">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>System Monitor Dashboard</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-  <!-- Sidebar Navigation -->
   <div class="sidebar">
     <div class="logo">
       <i class="fas fa-chart-line"></i>
       <span>Monitor</span>
     </div>
     <nav class="menu">
-      <a href="#" class="menu-item active" data-page="dashboard">
+      <a href="#" class="menu-item" data-page="dashboard">
         <i class="fas fa-th-large"></i>
         <span>Dashboard</span>
       </a>
@@ -36,6 +35,10 @@
         <i class="fas fa-clock"></i>
         <span>Uptime</span>
       </a>
+      <a href="#" class="menu-item" data-page="network">
+        <i class="fas fa-network-wired"></i>
+        <span>Network</span>
+      </a>
     </nav>
     <div class="sidebar-footer">
       <a href="#" class="menu-item" data-page="settings">
@@ -45,9 +48,7 @@
     </div>
   </div>
 
-  <!-- Main Content -->
   <div class="main-content">
-    <!-- Top Bar -->
     <div class="top-bar">
       <h1 id="page-title">System Monitor Dashboard</h1>
       <div class="controls">
@@ -60,14 +61,40 @@
           <option value="120">Last 2 hours</option>
           <option value="300">Last 5 hours</option>
         </select>
+        <button id="export-json" class="btn-export">
+          <i class="fas fa-download"></i> Export JSON
+        </button>
         <button id="refresh" class="btn-refresh">
           <i class="fas fa-sync-alt"></i>
         </button>
       </div>
     </div>
 
-    <!-- Dashboard Page -->
     <div id="dashboard-page" class="page active">
+      <div class="system-info-banner">
+        <div class="system-info-item">
+          <i class="fas fa-desktop"></i>
+          <div>
+            <span class="info-label">System</span>
+            <span class="info-value" id="sys-platform">Loading...</span>
+          </div>
+        </div>
+        <div class="system-info-item">
+          <i class="fas fa-server"></i>
+          <div>
+            <span class="info-label">Hostname</span>
+            <span class="info-value" id="sys-hostname">Loading...</span>
+          </div>
+        </div>
+        <div class="system-info-item">
+          <i class="fas fa-microchip"></i>
+          <div>
+            <span class="info-label">CPU Cores</span>
+            <span class="info-value" id="sys-cores">0</span>
+          </div>
+        </div>
+      </div>
+
       <div class="metrics-grid">
         <div class="metric-card">
           <div class="metric-header">
@@ -123,7 +150,6 @@
       </div>
     </div>
 
-    <!-- CPU Page -->
     <div id="cpu-page" class="page">
       <div class="metrics-grid">
         <div class="metric-card">
@@ -200,7 +226,6 @@
       </div>
     </div>
 
-    <!-- Memory Page -->
     <div id="memory-page" class="page">
       <div class="metrics-grid">
         <div class="metric-card">
@@ -277,15 +302,7 @@
       </div>
     </div>
 
-    <!-- Disk Page -->
     <div id="disk-page" class="page">
-      <div class="disk-select-container">
-        <label for="disk-device-select">
-          <i class="fas fa-hdd"></i> Choose disk:
-        </label>
-        <select id="disk-device-select"></select>
-      </div>
-
       <div class="metrics-grid">
         <div class="metric-card">
           <div class="metric-header">
@@ -349,7 +366,6 @@
       </div>
     </div>
 
-    <!-- Uptime Page -->
     <div id="uptime-page" class="page">
       <div class="metrics-grid">
         <div class="metric-card">
@@ -411,7 +427,62 @@
       </div>
     </div>
 
-    <!-- Settings Page -->
+    <div id="network-page" class="page">
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-header">
+            <i class="fas fa-arrow-alt-circle-up"></i>
+            <span>Total Sent</span>
+          </div>
+          <div class="metric-value" id="net-sent">0 B</div>
+          <div class="metric-footer">Bytes uploaded since boot</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-header">
+            <i class="fas fa-arrow-alt-circle-down"></i>
+            <span>Total Received</span>
+          </div>
+          <div class="metric-value" id="net-recv">0 B</div>
+          <div class="metric-footer">Bytes downloaded since boot</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-header">
+            <i class="fas fa-upload"></i>
+            <span>Upload Speed</span>
+          </div>
+          <div class="metric-value" id="net-up-speed">0 B/s</div>
+          <div class="metric-footer">Average over the last 10s</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-header">
+            <i class="fas fa-download"></i>
+            <span>Download Speed</span>
+          </div>
+          <div class="metric-value" id="net-down-speed">0 B/s</div>
+          <div class="metric-footer">Average over the last 10s</div>
+        </div>
+      </div>
+
+      <div class="charts-grid">
+        <div class="chart-card full-width">
+          <div class="chart-header">
+            <h3><i class="fas fa-network-wired"></i> Network Traffic Timeline (KB/s)</h3>
+          </div>
+          <canvas id="networkChart"></canvas>
+        </div>
+      </div>
+      
+      <div class="chart-card full-width" id="network-interfaces">
+        <div class="chart-header">
+          <h3><i class="fas fa-list"></i> Interface Details</h3>
+        </div>
+        <p style="padding: 20px; color: #9fa0a4;">Loading network interfaces...</p>
+      </div>
+    </div>
+
     <div id="settings-page" class="page">
       <div class="settings-grid">
         <div class="settings-card">

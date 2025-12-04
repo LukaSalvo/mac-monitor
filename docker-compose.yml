@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   mac-monitor:
     build: .
@@ -5,3 +7,5 @@ services:
       - "9090:3000"
     container_name: mac-monitor
     restart: unless-stopped
+    environment:
+      - TZ=UTC
