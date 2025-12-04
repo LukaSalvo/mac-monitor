@@ -437,24 +437,45 @@ canvas {
 }
 
 /* ============================================
-   SETTINGS PAGE
+   SETTINGS PAGE - BEAUTIFUL DESIGN
    ============================================ */
 .settings-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
   gap: 24px;
+  animation: fadeIn 0.4s ease-out;
 }
 
 .settings-card {
-  background: linear-gradient(135deg, #1a1b1f 0%, #111217 100%);
+  background: linear-gradient(145deg, #1a1b1f 0%, #14151a 100%);
   border: 1px solid #2a2b2f;
-  border-radius: 12px;
-  padding: 28px;
-  transition: all 0.3s;
+  border-radius: 16px;
+  padding: 32px;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.settings-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #ff6b35 0%, #4ec9b0 100%);
+  opacity: 0;
+  transition: opacity 0.3s;
 }
 
 .settings-card:hover {
-  border-color: #3a3b3f;
+  border-color: #ff6b35;
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(255, 107, 53, 0.15);
+}
+
+.settings-card:hover::before {
+  opacity: 1;
 }
 
 .settings-card.full-width {
@@ -463,139 +484,310 @@ canvas {
 
 .settings-card h3 {
   color: #fff;
-  font-size: 19px;
-  font-weight: 600;
-  margin-bottom: 14px;
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 16px;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
+  letter-spacing: -0.3px;
 }
 
 .settings-card h3 i {
   color: #ff6b35;
-  font-size: 20px;
+  font-size: 24px;
+  background: rgba(255, 107, 53, 0.1);
+  padding: 10px;
+  border-radius: 10px;
 }
 
 .settings-card p {
   color: #9fa0a4;
   font-size: 14px;
-  margin-bottom: 18px;
-  line-height: 1.6;
+  margin-bottom: 24px;
+  line-height: 1.7;
 }
 
+/* Radio Groups - Modern Toggle Style */
 .radio-group {
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 
 .radio-label {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   color: #d8d9da;
   cursor: pointer;
-  padding: 12px 14px;
-  border-radius: 8px;
-  transition: background-color 0.2s;
-  font-size: 14px;
+  padding: 16px 18px;
+  border-radius: 12px;
+  transition: all 0.3s;
+  font-size: 15px;
+  border: 2px solid transparent;
+  background: rgba(26, 27, 31, 0.5);
+  position: relative;
+  overflow: hidden;
+}
+
+.radio-label::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: #ff6b35;
+  opacity: 0;
+  transition: opacity 0.3s;
 }
 
 .radio-label:hover {
-  background-color: #1f1f23;
+  background: #1a1b1f;
+  border-color: #2a2b2f;
+  transform: translateX(4px);
+}
+
+.radio-label:has(input:checked) {
+  background: rgba(255, 107, 53, 0.08);
+  border-color: #ff6b35;
+  color: #fff;
+  font-weight: 600;
+}
+
+.radio-label:has(input:checked)::before {
+  opacity: 1;
 }
 
 .radio-label input[type="radio"] {
   cursor: pointer;
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   accent-color: #ff6b35;
+  flex-shrink: 0;
 }
 
+/* Select Dropdowns - Enhanced */
 .settings-select {
   width: 100%;
-  background-color: #111217;
+  background: linear-gradient(135deg, #14151a 0%, #1a1b1f 100%);
   color: #d8d9da;
-  border: 1px solid #2a2b2f;
-  padding: 12px 16px;
-  border-radius: 8px;
-  font-size: 14px;
+  border: 2px solid #2a2b2f;
+  padding: 14px 18px;
+  border-radius: 12px;
+  font-size: 15px;
   cursor: pointer;
   outline: none;
-  margin-top: 10px;
-  transition: border-color 0.2s;
+  margin-top: 12px;
+  transition: all 0.3s;
+  font-weight: 500;
 }
 
 .settings-select:hover {
-  border-color: #3a3b3f;
+  border-color: #ff6b35;
+  background: #1a1b1f;
 }
 
 .settings-select:focus {
   border-color: #ff6b35;
+  box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
 }
 
+.settings-select option {
+  background: #1a1b1f;
+  color: #d8d9da;
+  padding: 12px;
+}
+
+/* Info Text Box - Glowing Effect */
 .settings-info-text {
-  background-color: #111217;
+  background: linear-gradient(135deg, #14151a 0%, #1a1b1f 100%);
   border-left: 4px solid #4ec9b0;
-  padding: 16px 18px;
-  border-radius: 8px;
-  margin-bottom: 18px;
+  padding: 20px 22px;
+  border-radius: 12px;
+  margin-bottom: 24px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 14px;
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 1.7;
+  box-shadow: 0 4px 12px rgba(78, 201, 176, 0.05);
+  transition: all 0.3s;
+}
+
+.settings-info-text:hover {
+  box-shadow: 0 6px 20px rgba(78, 201, 176, 0.12);
+  transform: translateX(4px);
 }
 
 .settings-info-text i {
   color: #4ec9b0;
-  font-size: 18px;
+  font-size: 22px;
+  background: rgba(78, 201, 176, 0.1);
+  padding: 10px;
+  border-radius: 8px;
+  flex-shrink: 0;
 }
 
+/* Action Buttons - Premium Design */
 .settings-actions {
   display: flex;
-  gap: 12px;
-  margin-top: 18px;
+  gap: 16px;
+  margin-top: 24px;
 }
 
 .btn-primary, .btn-secondary {
   flex: 1;
-  padding: 14px 24px;
+  padding: 16px 28px;
   border: none;
-  border-radius: 8px;
-  font-size: 15px;
-  font-weight: 600;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
+  position: relative;
+  overflow: hidden;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.btn-primary::before,
+.btn-secondary::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.btn-primary:hover::before,
+.btn-secondary:hover::before {
+  width: 300px;
+  height: 300px;
 }
 
 .btn-primary {
-  background-color: #ff6b35;
+  background: linear-gradient(135deg, #ff6b35 0%, #ff5522 100%);
   color: #fff;
+  box-shadow: 0 4px 16px rgba(255, 107, 53, 0.25);
 }
 
 .btn-primary:hover {
-  background-color: #ff5522;
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(255, 107, 53, 0.35);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(255, 107, 53, 0.4);
 }
 
 .btn-primary:active {
-  transform: translateY(0);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(255, 107, 53, 0.3);
 }
 
 .btn-secondary {
-  background-color: #2a2b2f;
+  background: linear-gradient(135deg, #2a2b2f 0%, #1f2024 100%);
   color: #d8d9da;
+  border: 2px solid #3a3b3f;
 }
 
 .btn-secondary:hover {
-  background-color: #3a3b3f;
-  transform: translateY(-2px);
+  background: linear-gradient(135deg, #3a3b3f 0%, #2a2b2f 100%);
+  border-color: #4a4b4f;
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
 }
 
 .btn-secondary:active {
+  transform: translateY(-1px);
+}
+
+.btn-primary i,
+.btn-secondary i {
+  font-size: 16px;
+  position: relative;
+  z-index: 1;
+}
+
+/* Responsive Design for Settings */
+@media (max-width: 768px) {
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .settings-card {
+    padding: 24px;
+  }
+  
+  .settings-actions {
+    flex-direction: column;
+  }
+  
+  .btn-primary,
+  .btn-secondary {
+    width: 100%;
+  }
+}
+
+/* Animation for page load */
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.settings-card {
+  animation: slideInUp 0.4s ease-out backwards;
+}
+
+.settings-card:nth-child(1) {
+  animation-delay: 0.1s;
+}
+
+.settings-card:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.settings-card:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.settings-card:nth-child(4) {
+  animation-delay: 0.4s;
+}
+
+/* Button Export (top bar) */
+.btn-export {
+  background-color: #4ec9b0;
+  color: #fff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-export:hover {
+  background-color: #3eb89f;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(78, 201, 176, 0.3);
+}
+
+.btn-export:active {
   transform: translateY(0);
 }

@@ -1,76 +1,17 @@
-/**
- * Fichier : app.js
- * Description : Logique front-end pour le tableau de bord de surveillance système.
- * Gère la navigation, la récupération des données, les graphiques Chart.js et les préférences utilisateur.
- */
-
 let charts = {};
 let currentPage = 'dashboard';
-let intervalID;
-let selectedDisk = null; // Stocke l'objet disque sélectionné (depuis les paramètres)
-let unitPref = 'binary'; // 'binary' (1024) ou 'decimal' (1000)
+let previousNetData = null;
 
-// --- Utilitaires ---
-
-/**
- * Formate une taille de fichier en une chaîne lisible (ex: 5.23 GiB).
- * Utilise la préférence d'unité de l'utilisateur (binaire ou décimale).
- */
+// Format bytes
 function formatBytes(bytes) {
-  if (bytes === 0 || bytes === null || bytes === undefined) return '0 B';
-  
-  // k est 1024 pour binaire (défaut) ou 1000 pour décimal
-  const k = unitPref === 'decimal' ? 1000 : 1024;
-  
-  const binarySizes = ['B', 'KiB', 'MiB', 'GiB', 'TiB'];
-  const decimalSizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const sizes = unitPref === 'decimal' ? decimalSizes : binarySizes;
-  
-  // Calcul de l'indice et du formatage
+  if (!bytes) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  // Le niveau 0 est traité comme une exception si bytes < k
-  const index = Math.min(i, sizes.length - 1); 
-  return (bytes / Math.pow(k, index)).toFixed(2) + ' ' + sizes[index];
+  return (bytes / Math.pow(k, i)).toFixed(2) + ' ' + sizes[i];
 }
 
-/**
- * Formate une durée en secondes en une chaîne lisible (ex: 2d 5h 30m).
- */
-function formatDuration(seconds) {
-    if (seconds < 60) return `${seconds.toFixed(0)}s`;
-    let days = Math.floor(seconds / (3600 * 24));
-    let hours = Math.floor((seconds % (3600 * 24)) / 3600);
-    let minutes = Math.floor((seconds % 3600) / 60);
-
-    let parts = [];
-    if (days > 0) parts.push(days + 'd');
-    if (hours > 0) parts.push(hours + 'h');
-    if (minutes > 0) parts.push(minutes + 'm');
-    
-    if (parts.length === 0) return '0s';
-    return parts.join(' ');
-}
-
-// --- Préférences et Initialisation ---
-
-/**
- * Charge les préférences utilisateur depuis le stockage local.
- */
-function initPrefs() {
-    try {
-        unitPref = localStorage.getItem('unitPref') || 'binary';
-        const storedDisk = localStorage.getItem('selectedDisk');
-        if (storedDisk && storedDisk !== 'null') {
-            selectedDisk = JSON.parse(storedDisk);
-        }
-    } catch (e) {
-        console.error("Erreur de chargement des préférences:", e);
-    }
-}
-
-/**
- * Initialise les écouteurs d'événements pour la navigation latérale.
- */
+// Navigation
 function initNav() {
   document.querySelectorAll('.menu-item').forEach(item => {
     item.addEventListener('click', (e) => {
@@ -81,67 +22,46 @@ function initNav() {
   });
 }
 
-/**
- * Change la page active du tableau de bord.
- */
 function switchPage(page) {
   currentPage = page;
   
-  // Met à jour l'élément de menu actif
   document.querySelectorAll('.menu-item').forEach(i => i.classList.remove('active'));
   const active = document.querySelector(`[data-page="${page}"]`);
   if (active) active.classList.add('active');
   
-  // Met à jour le titre de la page
   const titles = {
     'dashboard': 'System Monitor Dashboard',
     'cpu': 'CPU Analysis',
     'memory': 'Memory Analysis',
     'disk': 'Disk Analysis',
     'network': 'Network Analysis',
-    'uptime': 'System Uptime',
-    'settings': 'Application Settings'
+    'uptime': 'System Uptime'
   };
   
   document.getElementById('page-title').textContent = titles[page] || 'Monitor';
   
-  // Affiche la bonne page
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   const activePage = document.getElementById(`${page}-page`);
   if (activePage) activePage.classList.add('active');
   
-  // Initialisation spécifique à la page
-  if (page === 'settings') {
-    updateSettingsPage();
-  } else {
-    // Redémarre l'intervalle si on quitte les settings et s'assure que fetchData est appelée.
-    // L'intervalle est géré dans updateSettingsPage si les paramètres sont modifiés.
-    fetchData(); 
-  }
+  fetchData();
 }
 
-// --- Récupération des Données ---
-
-/**
- * Récupère l'historique des métriques système et met à jour la page active.
- */
+// Fetch and update data
 async function fetchData() {
   try {
     const res = await fetch('/api/system');
-    if (!res.ok) throw new Error('Échec de la récupération des données système');
+    if (!res.ok) throw new Error('Failed to fetch');
     const data = await res.json();
     
     const minutes = parseInt(document.getElementById('interval').value);
     const cutoff = Date.now() / 1000 - minutes * 60;
-    
-    // Filtre les données selon la plage de temps sélectionnée
     const filtered = data.filter(d => d.timestamp >= cutoff);
     
     if (filtered.length === 0) return;
     
     const latest = filtered[filtered.length - 1];
     
-    // Met à jour la page active
     switch(currentPage) {
       case 'dashboard':
         updateDashboard(filtered, latest);
@@ -163,52 +83,26 @@ async function fetchData() {
         break;
     }
   } catch (err) {
-    console.error('Erreur de récupération des données:', err);
+    console.error('Fetch error:', err);
   }
 }
 
-/**
- * Récupère la liste de tous les disques/partitions pour les paramètres.
- */
-async function fetchDisks() {
-    try {
-        const res = await fetch('/api/disks');
-        if (!res.ok) throw new Error('Échec de la récupération des disques');
-        return await res.json();
-    } catch (err) {
-        console.error('Erreur de récupération des disques:', err);
-        return [];
-    }
-}
-
-// --- Mise à Jour des Pages ---
-
 function updateDashboard(filtered, latest) {
-  const k = unitPref === 'decimal' ? 1e9 : 1024**3;
-  const unit = unitPref === 'decimal' ? 'GB' : 'GiB';
-
-  // Infos Système
-  document.getElementById('sys-hostname').textContent = latest.hostname || 'Inconnu';
-  document.getElementById('sys-platform').textContent = latest.platform ? `${latest.platform} ${latest.os || ''}` : 'Inconnu';
-  document.getElementById('sys-cores').textContent = latest.cpu_cores ? `${latest.cpu_cores} cœurs` : 'Inconnu';
+  // System info
+  document.getElementById('sys-hostname').textContent = latest.hostname || 'Unknown';
+  document.getElementById('sys-platform').textContent = latest.platform ? `${latest.platform} ${latest.os || ''}` : 'Unknown';
+  document.getElementById('sys-cores').textContent = latest.cpu_cores ? `${latest.cpu_cores} cores` : 'Unknown';
   
-  // Métriques
+  // Metrics
   document.getElementById('cpu').textContent = (latest.cpu_usage || 0).toFixed(1) + '%';
-  document.getElementById('memory').textContent = `${formatBytes(latest.memory_used_bytes)} / ${formatBytes(latest.memory_total_bytes)}`;
+  document.getElementById('memory').textContent = formatBytes(latest.memory_used_bytes);
+  document.getElementById('disk').textContent = formatBytes(latest.disk_used_bytes);
+  document.getElementById('uptime').textContent = latest.uptime || '0s';
   
-  // Disque : Utilise le disque sélectionné si défini, sinon les données par défaut
-  const diskData = selectedDisk || {
-      used_bytes: latest.disk_used_bytes,
-      total_bytes: latest.disk_total_bytes,
-  };
-  
-  document.getElementById('disk').textContent = `${formatBytes(diskData.used_bytes)} / ${formatBytes(diskData.total_bytes)}`;
-  document.getElementById('uptime').textContent = formatDuration(latest.uptime_seconds);
-  
-  // Graphiques
+  // Charts
   const labels = filtered.map(d => new Date(d.timestamp * 1000).toLocaleTimeString());
   const cpuData = filtered.map(d => d.cpu_usage || 0);
-  const memData = filtered.map(d => (d.memory_used_bytes || 0) / k); 
+  const memData = filtered.map(d => d.memory_used || 0);
   
   updateChart('cpuChart', {
     type: 'line',
@@ -231,7 +125,7 @@ function updateDashboard(filtered, latest) {
     data: {
       labels,
       datasets: [{
-        label: `Mémoire ${unit}`,
+        label: 'Memory GB',
         data: memData,
         borderColor: '#4ec9b0',
         backgroundColor: 'rgba(78, 201, 176, 0.1)',
@@ -254,12 +148,13 @@ function updateCPU(filtered, latest) {
   
   const labels = filtered.map(d => new Date(d.timestamp * 1000).toLocaleTimeString());
   
+  // Timeline chart
   updateChart('cpuDetailChart', {
     type: 'line',
     data: {
       labels,
       datasets: [{
-        label: 'Utilisation CPU %',
+        label: 'CPU Usage %',
         data: cpuValues,
         borderColor: '#ff6b35',
         backgroundColor: 'rgba(255, 107, 53, 0.2)',
@@ -270,36 +165,73 @@ function updateCPU(filtered, latest) {
     options: getChartOptions({ max: 100 })
   });
 
-  // Logique de distribution (simple)
+  // Calculate distribution
   const totalPoints = cpuValues.length;
-  const high = cpuValues.filter(v => v > 80).length / totalPoints * 100;
-  const medium = cpuValues.filter(v => v >= 50 && v <= 80).length / totalPoints * 100;
-  const low = cpuValues.filter(v => v < 50).length / totalPoints * 100;
-
-  document.getElementById('cpu-high').textContent = high.toFixed(1) + '%';
-  document.getElementById('cpu-medium').textContent = medium.toFixed(1) + '%';
-  document.getElementById('cpu-low').textContent = low.toFixed(1) + '%';
+  const highCount = cpuValues.filter(v => v > 80).length;
+  const mediumCount = cpuValues.filter(v => v >= 50 && v <= 80).length;
+  const lowCount = cpuValues.filter(v => v < 50).length;
   
-  // Placeholder pour cpuDistChart (Pie) - Non utilisé dans le template fourni
+  const highPercent = (highCount / totalPoints * 100).toFixed(1);
+  const mediumPercent = (mediumCount / totalPoints * 100).toFixed(1);
+  const lowPercent = (lowCount / totalPoints * 100).toFixed(1);
+
+  document.getElementById('cpu-high').textContent = highPercent + '%';
+  document.getElementById('cpu-medium').textContent = mediumPercent + '%';
+  document.getElementById('cpu-low').textContent = lowPercent + '%';
+  
+  // Distribution doughnut chart
+  updateChart('cpuDistChart', {
+    type: 'doughnut',
+    data: {
+      labels: ['High (>80%)', 'Medium (50-80%)', 'Low (<50%)'],
+      datasets: [{
+        data: [highCount, mediumCount, lowCount],
+        backgroundColor: ['#ff6b35', '#ffcc00', '#4ec9b0'],
+        borderWidth: 2,
+        borderColor: '#111217'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          labels: { 
+            color: '#d8d9da',
+            font: { size: 12 },
+            padding: 15
+          },
+          position: 'bottom'
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              const label = context.label || '';
+              const value = context.parsed || 0;
+              const total = context.dataset.data.reduce((a, b) => a + b, 0);
+              const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+              return label + ': ' + value + ' points (' + percentage + '%)';
+            }
+          }
+        }
+      }
+    }
+  });
 }
 
 function updateMemory(filtered, latest) {
-  const k = unitPref === 'decimal' ? 1e9 : 1024**3;
-  const unit = unitPref === 'decimal' ? 'GB' : 'GiB';
-
-  const memUsedBytes = latest.memory_used_bytes || 0;
-  const memTotalBytes = latest.memory_total_bytes || 0;
-  const memAvailableBytes = memTotalBytes - memUsedBytes;
-
-  const memValues = filtered.map(d => (d.memory_used_bytes || 0) / k);
+  const memValues = filtered.map(d => d.memory_used || 0);
   const avg = memValues.reduce((a, b) => a + b, 0) / memValues.length;
+  const availableBytes = (latest.memory_total_bytes || 0) - (latest.memory_used_bytes || 0);
   
-  document.getElementById('mem-used').textContent = formatBytes(memUsedBytes);
+  document.getElementById('mem-used').textContent = formatBytes(latest.memory_used_bytes);
   document.getElementById('mem-percent').textContent = (latest.memory_percent || 0).toFixed(1) + '%';
-  document.getElementById('mem-total').textContent = formatBytes(memTotalBytes);
-  document.getElementById('mem-available').textContent = formatBytes(memAvailableBytes);
-  document.getElementById('mem-max').textContent = formatBytes(Math.max(...memValues.map(v => v * k)));
-  document.getElementById('mem-avg').textContent = avg.toFixed(2) + ' ' + unit;
+  document.getElementById('mem-total').textContent = formatBytes(latest.memory_total_bytes);
+  document.getElementById('mem-max').textContent = Math.max(...memValues).toFixed(2) + ' GB';
+  document.getElementById('mem-avg').textContent = avg.toFixed(2) + ' GB';
+  document.getElementById('mem-available').textContent = formatBytes(availableBytes);
+  document.getElementById('mem-growth').textContent = '0 MB/min';
+  document.getElementById('mem-estimate').textContent = 'Never';
   
   const labels = filtered.map(d => new Date(d.timestamp * 1000).toLocaleTimeString());
   
@@ -308,7 +240,7 @@ function updateMemory(filtered, latest) {
     data: {
       labels,
       datasets: [{
-        label: `Mémoire ${unit}`,
+        label: 'Memory GB',
         data: memValues,
         borderColor: '#4ec9b0',
         backgroundColor: 'rgba(78, 201, 176, 0.2)',
@@ -319,13 +251,13 @@ function updateMemory(filtered, latest) {
     options: getChartOptions()
   });
 
-  // Graphique en anneau (Pie)
+  // Memory pie chart
   updateChart('memPieChart', {
     type: 'doughnut',
     data: {
-      labels: ['Utilisée', 'Disponible'],
+      labels: ['Used', 'Available'],
       datasets: [{
-        data: [memUsedBytes, memAvailableBytes],
+        data: [latest.memory_used_bytes, availableBytes],
         backgroundColor: ['#ff6b35', '#4ec9b0']
       }]
     },
@@ -333,74 +265,94 @@ function updateMemory(filtered, latest) {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { labels: { color: '#d8d9da' } }
+        legend: {
+          labels: { color: '#d8d9da' }
+        }
+      }
+    }
+  });
+}
+
+function updateDisk(filtered, latest) {
+  const used = latest.disk_used || 0;
+  const total = latest.disk_total || 0;
+  const free = total - used;
+  const percent = total > 0 ? ((used / total) * 100).toFixed(1) : 0;
+  
+  document.getElementById('disk-used').textContent = formatBytes(latest.disk_used_bytes);
+  document.getElementById('disk-percent').textContent = percent + '%';
+  document.getElementById('disk-total').textContent = formatBytes(latest.disk_total_bytes);
+  document.getElementById('disk-free').textContent = formatBytes(latest.disk_total_bytes - latest.disk_used_bytes);
+  
+  let status = 'OK';
+  if (percent > 90) status = 'Critical';
+  else if (percent > 80) status = 'Warning';
+  document.getElementById('disk-status').textContent = status;
+  
+  const info = percent > 80 
+    ? `⚠️ Your disk is ${percent}% full. Consider freeing up space.`
+    : `✓ Your disk has ${free.toFixed(1)} GB free.`;
+  document.getElementById('disk-info').textContent = info;
+  
+  updateChart('diskPieChart', {
+    type: 'doughnut',
+    data: {
+      labels: ['Used', 'Free'],
+      datasets: [{
+        data: [used, free],
+        backgroundColor: ['#ff6b35', '#4ec9b0']
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          labels: { color: '#d8d9da' }
+        }
       }
     }
   });
 
-}
-
-function updateDisk(filtered, latest) {
-    // Utilise le disque sélectionné si défini, sinon les données par défaut
-    const disk = selectedDisk || {
-        mountpoint: '/',
-        used_bytes: latest.disk_used_bytes || 0,
-        total_bytes: latest.disk_total_bytes || 0,
-        used_percent: latest.disk_percent || 0
-    };
-    
-    const used = disk.used_bytes;
-    const total = disk.total_bytes;
-    const free = total - used;
-    const percent = total > 0 ? ((used / total) * 100).toFixed(1) : 0;
-    
-    document.getElementById('disk-used').textContent = formatBytes(used);
-    document.getElementById('disk-percent').textContent = percent + '%';
-    document.getElementById('disk-total').textContent = formatBytes(total);
-    document.getElementById('disk-free').textContent = formatBytes(free);
-    
-    let status = 'OK';
-    if (percent > 90) status = 'Critique';
-    else if (percent > 80) status = 'Avertissement';
-    document.getElementById('disk-status').textContent = status;
-    
-    const info = percent > 80 
-      ? `⚠️ Le disque monté sur ${disk.mountpoint} est plein à ${percent}%. Libérez de l'espace.`
-      : `✓ Le disque monté sur ${disk.mountpoint} dispose de ${formatBytes(free)} d'espace libre.`;
-    document.getElementById('disk-info').textContent = info;
-    
-    // Graphique en anneau (Pie)
-    updateChart('diskPieChart', {
-      type: 'doughnut',
-      data: {
-        labels: ['Utilisé', 'Libre'],
-        datasets: [{
-          data: [used, free],
-          backgroundColor: ['#ff6b35', '#4ec9b0']
-        }]
+  // Disk bar chart
+  updateChart('diskBarChart', {
+    type: 'bar',
+    data: {
+      labels: ['Disk Space'],
+      datasets: [
+        {
+          label: 'Used',
+          data: [used],
+          backgroundColor: '#ff6b35'
+        },
+        {
+          label: 'Free',
+          data: [free],
+          backgroundColor: '#4ec9b0'
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          labels: { color: '#d8d9da' }
+        }
       },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { labels: { color: '#d8d9da' } }
+      scales: {
+        x: {
+          ticks: { color: '#9fa0a4' },
+          grid: { color: '#2a2b2f' }
+        },
+        y: {
+          ticks: { color: '#9fa0a4' },
+          grid: { color: '#2a2b2f' },
+          beginAtZero: true
         }
       }
-    });
-
-    // Graphique à barres
-    updateChart('diskBarChart', {
-        type: 'bar',
-        data: {
-            labels: ['Espace Total', 'Utilisé', 'Libre'],
-            datasets: [{
-                label: `Espace Disque (${disk.mountpoint})`,
-                data: [total, used, free],
-                backgroundColor: ['#1a1b1f', '#ff6b35', '#4ec9b0']
-            }]
-        },
-        options: getChartOptions()
-    });
+    }
+  });
 }
 
 async function updateNetwork(filtered, latest) {
@@ -410,38 +362,31 @@ async function updateNetwork(filtered, latest) {
   document.getElementById('net-sent').textContent = formatBytes(sent);
   document.getElementById('net-recv').textContent = formatBytes(recv);
   
-  // Calculer les vitesses sur les 10 dernières secondes (environ)
-  const recent = filtered.slice(-10); 
-  let upSpeed = 0;
-  let downSpeed = 0;
-
-  if (recent.length >= 2) {
-    const first = recent[0];
-    const last = recent[recent.length - 1];
-    const timeDiff = last.timestamp - first.timestamp;
-    
-    if (timeDiff > 0) {
-      upSpeed = Math.max(0, (last.network_sent - first.network_sent) / timeDiff);
-      downSpeed = Math.max(0, (last.network_recv - first.network_recv) / timeDiff);
+  // Calculate speeds from history
+  if (filtered.length >= 2) {
+    const recent = filtered.slice(-10);
+    if (recent.length >= 2) {
+      const first = recent[0];
+      const last = recent[recent.length - 1];
+      const timeDiff = last.timestamp - first.timestamp;
+      
+      if (timeDiff > 0) {
+        const upSpeed = (last.network_sent - first.network_sent) / timeDiff;
+        const downSpeed = (last.network_recv - first.network_recv) / timeDiff;
+        document.getElementById('net-up-speed').textContent = formatBytes(Math.max(0, upSpeed)) + '/s';
+        document.getElementById('net-down-speed').textContent = formatBytes(Math.max(0, downSpeed)) + '/s';
+      }
     }
   }
-
-  document.getElementById('net-up-speed').textContent = formatBytes(upSpeed) + '/s';
-  document.getElementById('net-down-speed').textContent = formatBytes(downSpeed) + '/s';
   
-  // Données du graphique (conversion en KB/s ou KiB/s)
-  const k = unitPref === 'decimal' ? 1000 : 1024;
-  const unitLabel = unitPref === 'decimal' ? 'KB/s' : 'KiB/s';
-
+  // Chart
   const labels = filtered.map(d => new Date(d.timestamp * 1000).toLocaleTimeString());
-  
   const sentData = filtered.map((d, i) => {
     if (i === 0) return 0;
     const prev = filtered[i - 1];
     const diff = d.network_sent - prev.network_sent;
     const time = d.timestamp - prev.timestamp;
-    // (octets / seconde) / k = KB/s ou KiB/s
-    return time > 0 ? (diff / time) / k : 0; 
+    return time > 0 ? (diff / time) / 1024 : 0;
   });
   
   const recvData = filtered.map((d, i) => {
@@ -449,7 +394,7 @@ async function updateNetwork(filtered, latest) {
     const prev = filtered[i - 1];
     const diff = d.network_recv - prev.network_recv;
     const time = d.timestamp - prev.timestamp;
-    return time > 0 ? (diff / time) / k : 0;
+    return time > 0 ? (diff / time) / 1024 : 0;
   });
   
   updateChart('networkChart', {
@@ -458,7 +403,7 @@ async function updateNetwork(filtered, latest) {
       labels,
       datasets: [
         {
-          label: `Envoi (${unitLabel})`,
+          label: 'Upload KB/s',
           data: sentData,
           borderColor: '#ff6b35',
           backgroundColor: 'rgba(255, 107, 53, 0.1)',
@@ -466,7 +411,7 @@ async function updateNetwork(filtered, latest) {
           fill: true
         },
         {
-          label: `Réception (${unitLabel})`,
+          label: 'Download KB/s',
           data: recvData,
           borderColor: '#4ec9b0',
           backgroundColor: 'rgba(78, 201, 176, 0.1)',
@@ -475,213 +420,75 @@ async function updateNetwork(filtered, latest) {
         }
       ]
     },
-    options: getChartOptions({ suggestedMax: Math.max(...sentData, ...recvData) * 1.2 || 100 })
+    options: getChartOptions()
   });
   
-  // Récupérer et afficher les détails des interfaces
+  // Fetch interfaces
   try {
     const res = await fetch('/api/network');
-    if (!res.ok) throw new Error('Échec de l\'API réseau');
+    if (!res.ok) throw new Error('Network API failed');
     const interfaces = await res.json();
     const container = document.getElementById('network-interfaces');
     
     if (!container) return;
     
     if (interfaces && interfaces.length > 0) {
-      let html = '<div style="padding: 20px;"><h3 style="margin-bottom: 15px; color: #fff;">Interfaces Réseau Actives</h3>';
+      let html = '<div style="padding: 20px;"><h3 style="margin-bottom: 15px; color: #fff;">Active Network Interfaces</h3>';
       interfaces.forEach(iface => {
         html += `
-          <div class="stat-item">
-            <span class="stat-label"><i class="fas fa-ethernet"></i> ${iface.interface}</span>
-            <span class="stat-value">↑ ${formatBytes(iface.bytes_sent)} / ↓ ${formatBytes(iface.bytes_recv)}</span>
+          <div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #2a2b2f;">
+            <span style="color: #d8d9da;"><i class="fas fa-ethernet"></i> ${iface.interface}</span>
+            <span style="color: #9fa0a4;">↑ ${formatBytes(iface.bytes_sent)} / ↓ ${formatBytes(iface.bytes_recv)}</span>
           </div>
         `;
       });
       html += '</div>';
       container.innerHTML = html;
     } else {
-      container.innerHTML = '<p style="padding: 20px; color: #9fa0a4;">Aucune interface réseau active trouvée.</p>';
+      container.innerHTML = '<p style="padding: 20px; color: #9fa0a4;">No active network interfaces found.</p>';
     }
   } catch (err) {
-    console.error('Erreur interfaces réseau:', err);
-    const container = document.getElementById('network-interfaces');
-    if (container) {
-      container.innerHTML = '<p style="padding: 20px; color: #ff6b35;">⚠️ Impossible de charger les interfaces réseau.</p>';
-    }
+    console.error('Network interfaces error:', err);
   }
 }
 
 function updateUptime(filtered, latest) {
-  const uptimeSeconds = latest.uptime_seconds || 0;
-  const uptimeStr = formatDuration(uptimeSeconds);
+  const uptimeStr = latest.uptime || '0s';
   document.getElementById('uptime-current').textContent = uptimeStr;
   
-  // Calculs pour les métriques
-  const totalSecondsInWeek = 7 * 24 * 3600;
-  const days = Math.floor(uptimeSeconds / (3600 * 24));
-  const hours = Math.floor((uptimeSeconds % (3600 * 24)) / 3600);
-  const minutes = Math.floor((uptimeSeconds % 3600) / 60);
-
-  document.getElementById('uptime-days').textContent = days;
-  document.getElementById('uptime-hours').textContent = hours;
-  document.getElementById('uptime-minutes').textContent = minutes;
+  const days = uptimeStr.match(/(\d+)d/);
+  const hours = uptimeStr.match(/(\d+)h/);
+  const minutes = uptimeStr.match(/(\d+)m/);
   
-  // Fiabilité basée sur l'historique ou un calcul simple
-  const reliability = 100 - (filtered.length / 300 * 0.01); // Ex: Très simple
-  document.getElementById('uptime-reliability').textContent = Math.max(99.9, reliability).toFixed(2) + '%';
+  document.getElementById('uptime-days').textContent = days ? days[1] : '0';
+  document.getElementById('uptime-hours').textContent = hours ? hours[1] : '0';
+  document.getElementById('uptime-minutes').textContent = minutes ? minutes[1] : '0';
   
-  // Mise à jour du graphique circulaire
+  const reliability = 99.9;
+  document.getElementById('uptime-reliability').textContent = reliability.toFixed(1) + '%';
+  
   const circle = document.getElementById('uptime-circle');
   if (circle) {
     const circumference = 2 * Math.PI * 90;
-    const progress = Math.min(uptimeSeconds / totalSecondsInWeek, 1);
-    const offset = circumference - progress * circumference;
-    circle.style.strokeDasharray = circumference;
+    const offset = circumference - (reliability / 100) * circumference;
     circle.style.strokeDashoffset = offset;
-    circle.style.stroke = progress < 0.5 ? '#ff6b35' : '#4ec9b0';
   }
-  
-  const message = days > 30 
-    ? "Votre système est en ligne depuis plus d'un mois. Pensez à redémarrer occasionnellement."
-    : "Votre système fonctionne sans interruption. Tout est en ordre.";
-  document.getElementById('uptime-message').textContent = message;
-  document.querySelector('.alert-box').classList.toggle('success', days < 30);
 }
-
-// --- Paramètres (Settings) ---
-
-async function updateSettingsPage() {
-    // 1. Initialiser les préférences d'unité
-    try {
-        const p = localStorage.getItem('unitPref') || 'binary';
-        const radios = document.getElementsByName('unit-pref');
-        for (const r of radios) { r.checked = (r.value === p); }
-    } catch (e) {}
-
-    // 2. Remplir le sélecteur de disque
-    try {
-        const devices = await fetchDisks();
-        const sel = document.getElementById('settings-disk-select');
-        sel.innerHTML = '';
-        
-        devices.forEach((d, idx) => {
-            const opt = document.createElement('option');
-            const name = d.device || d.mountpoint || `disk-${idx}`;
-            // IMPORTANT : Utilise formatBytes() ici même s'il utilise la préférence actuelle, car elle est mise à jour plus tard.
-            const totalLabel = d.total_bytes ? formatBytes(d.total_bytes) : 'inconnu'; 
-            opt.value = idx;
-            opt.textContent = `${name} — ${d.mountpoint || '/'} — ${totalLabel}`;
-            opt.dataset.device = JSON.stringify(d);
-            sel.appendChild(opt);
-        });
-
-        // Pré-sélectionner le disque précédemment choisi
-        try {
-            const stored = localStorage.getItem('selectedDisk');
-            if (stored) {
-                const sd = JSON.parse(stored);
-                for (let i = 0; i < sel.options.length; i++) {
-                    const o = JSON.parse(sel.options[i].dataset.device);
-                    if ((sd.mountpoint && o.mountpoint === sd.mountpoint) || (sd.device && o.device === sd.device) || (sd.total_bytes && o.total_bytes === sd.total_bytes)) {
-                        sel.selectedIndex = i; break;
-                    }
-                }
-            }
-        } catch (e) {}
-
-        // 3. Initialiser le taux de rafraîchissement
-        const refreshSelect = document.getElementById('settings-refresh-rate');
-        const storedRate = localStorage.getItem('refreshRate') || '5000';
-        refreshSelect.value = storedRate;
-
-        // 4. Gestion de la sauvegarde
-        const saveBtn = document.getElementById('save-settings');
-        if (saveBtn) saveBtn.onclick = () => {
-            const radios = document.getElementsByName('unit-pref');
-            let chosenUnit = 'binary';
-            for (const r of radios) if (r.checked) chosenUnit = r.value;
-            
-            const selOpt = sel.options[sel.selectedIndex];
-            let chosenDisk = selOpt ? JSON.parse(selOpt.dataset.device) : null;
-            const chosenRate = refreshSelect.value;
-            
-            try { 
-                localStorage.setItem('unitPref', chosenUnit); 
-                localStorage.setItem('selectedDisk', JSON.stringify(chosenDisk)); 
-                localStorage.setItem('refreshRate', chosenRate); 
-                
-                // Mettre à jour les variables globales et l'intervalle
-                unitPref = chosenUnit;
-                selectedDisk = chosenDisk;
-                clearInterval(intervalID);
-                intervalID = setInterval(fetchData, parseInt(chosenRate));
-
-            } catch (e) {}
-            
-            const info = document.getElementById('settings-info');
-            if (info) info.innerHTML = '<i class="fas fa-check-circle"></i> Paramètres sauvegardés.';
-            
-            // Re-fetch data pour appliquer immédiatement les nouveaux paramètres
-            fetchData();
-        };
-
-        // 5. Gestion de la réinitialisation
-        const resetBtn = document.getElementById('reset-settings');
-        if (resetBtn) resetBtn.onclick = () => {
-            try { 
-                localStorage.removeItem('unitPref'); 
-                localStorage.removeItem('selectedDisk'); 
-                localStorage.removeItem('refreshRate');
-            } catch (e) {}
-            
-            const info = document.getElementById('settings-info');
-            if (info) info.innerHTML = '<i class="fas fa-redo"></i> Paramètres réinitialisés aux valeurs par défaut.';
-            
-            // Réinitialiser les contrôles visuels et les variables
-            const radios = document.getElementsByName('unit-pref');
-            for (const r of radios) r.checked = (r.value === 'binary');
-            unitPref = 'binary';
-
-            if(sel.options.length > 0) sel.selectedIndex = 0;
-            selectedDisk = null;
-
-            refreshSelect.value = '5000';
-            
-            // Réinitialiser l'intervalle de rafraîchissement
-            clearInterval(intervalID);
-            intervalID = setInterval(fetchData, 5000);
-
-            fetchData();
-        };
-
-    } catch (err) {
-        console.error('Erreur lors de la récupération des disques pour les paramètres:', err);
-        const info = document.getElementById('settings-info');
-        if (info) info.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Impossible de charger les disques pour les paramètres.';
-    }
-}
-
-// --- Gestion des Graphiques Chart.js ---
 
 function updateChart(id, config) {
   const canvas = document.getElementById(id);
   if (!canvas) return;
   
   if (charts[id]) {
-    // Mettre à jour un graphique existant
     charts[id].data = config.data;
     charts[id].options = config.options;
     charts[id].update('none');
   } else {
-    // Créer un nouveau graphique
     const ctx = canvas.getContext('2d');
     charts[id] = new Chart(ctx, config);
   }
 }
 
-/**
- * Options de base pour tous les graphiques en ligne/barres.
- */
 function getChartOptions(extra = {}) {
   return {
     responsive: true,
@@ -700,14 +507,13 @@ function getChartOptions(extra = {}) {
         ticks: { color: '#9fa0a4' },
         grid: { color: '#2a2b2f' },
         beginAtZero: true,
-        ...extra // Ajouter des options personnalisées comme suggestedMax
+        ...extra
       }
     }
   };
 }
 
-// --- Exportation des Données ---
-
+// Export JSON
 async function exportJSON() {
   try {
     const res = await fetch('/api/system');
@@ -718,7 +524,7 @@ async function exportJSON() {
     const filtered = data.filter(d => d.timestamp >= cutoff);
     
     if (filtered.length === 0) {
-      alert('Aucune donnée à exporter');
+      alert('No data to export');
       return;
     }
     
@@ -727,11 +533,31 @@ async function exportJSON() {
     const exportData = {
       metadata: {
         exported_at: new Date().toISOString(),
-        hostname: latest.hostname || 'Inconnu',
-        platform: latest.platform || 'Inconnu',
+        hostname: latest.hostname || 'Unknown',
+        platform: latest.platform || 'Unknown',
         time_range_minutes: minutes,
-        data_points: filtered.length,
-        disk_in_dashboard: selectedDisk ? (selectedDisk.mountpoint || selectedDisk.device) : 'Primary OS Disk'
+        data_points: filtered.length
+      },
+      system: {
+        cpu: {
+          cores: latest.cpu_cores || 0,
+          threads: latest.cpu_threads || 0,
+          current: latest.cpu_usage || 0
+        },
+        memory: {
+          total_bytes: latest.memory_total_bytes || 0,
+          used_bytes: latest.memory_used_bytes || 0,
+          percent: latest.memory_percent || 0
+        },
+        disk: {
+          total_bytes: latest.disk_total_bytes || 0,
+          used_bytes: latest.disk_used_bytes || 0,
+          percent: latest.disk_percent || 0
+        },
+        network: {
+          sent: latest.network_sent || 0,
+          recv: latest.network_recv || 0
+        }
       },
       history: filtered
     };
@@ -748,20 +574,19 @@ async function exportJSON() {
     
     const btn = document.getElementById('export-json');
     const orig = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-check"></i> Exporté!';
+    btn.innerHTML = '<i class="fas fa-check"></i> Exported!';
     btn.style.backgroundColor = '#5cb85c';
     setTimeout(() => {
       btn.innerHTML = orig;
       btn.style.backgroundColor = '';
     }, 2000);
   } catch (err) {
-    console.error('Erreur d\'exportation:', err);
-    alert('Échec de l\'exportation: ' + err.message);
+    console.error('Export error:', err);
+    alert('Export failed: ' + err.message);
   }
 }
 
-// --- Écouteurs d'Événements Globaux ---
-
+// Event listeners
 document.getElementById('interval').addEventListener('change', fetchData);
 document.getElementById('refresh').addEventListener('click', () => {
   const btn = document.getElementById('refresh');
@@ -771,14 +596,8 @@ document.getElementById('refresh').addEventListener('click', () => {
 });
 document.getElementById('export-json').addEventListener('click', exportJSON);
 
-
-// --- Démarrage de l'Application ---
-
-initPrefs();
+// Initialize
 initNav();
 switchPage('dashboard');
-
-// Définir l'intervalle de rafraîchissement initial
-const rate = parseInt(localStorage.getItem('refreshRate') || '5000');
-intervalID = setInterval(fetchData, rate);
+setInterval(fetchData, 5000);
 fetchData();
