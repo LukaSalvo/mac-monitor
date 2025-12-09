@@ -1,7 +1,8 @@
 source 'https://rubygems.org'
 
 gem 'sinatra'
-gem 'puma'             # Remplacement de thin
-gem 'rackup'           # Nécessaire pour Sinatra récent
-gem 'sys-filesystem'
+gem 'json'
 gem 'vmstat'
+gem 'sys-filesystem'
+gem 'webrick' # Nécessaire pour Ruby 3.0+
+gem 'thin'    # Serveur web plus performant (optionnel mais recommandé)
