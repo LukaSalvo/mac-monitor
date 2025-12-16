@@ -1,0 +1,66 @@
+current directory: /Users/lukasalvo/Documents/Perso/mac-monitor/vendor/bundle/ruby/3.4.0/gems/vmstat-2.3.1/ext/vmstat
+/opt/homebrew/opt/ruby/bin/ruby extconf.rb
+checking for unistd.h... yes
+checking for getpagesize() in unistd.h... yes
+checking for stdlib.h... yes
+checking for sys/loadavg.h... no
+checking for getloadavg()... yes
+checking for mach/mach.h... yes
+checking for mach/mach_host.h... yes
+checking for host_processor_info()... yes
+checking for mach_host_self()... yes
+checking for mach_task_self()... yes
+checking for vm_deallocate()... yes
+checking for mach_error_string()... yes
+checking for task_info()... yes
+checking for KERN_SUCCESS in mach/mach.h,mach/mach_host.h... yes
+checking for TASK_BASIC_INFO in mach/mach.h,mach/mach_host.h... yes
+checking for HOST_VM_INFO in mach/mach.h,mach/mach_host.h... yes
+checking for CPU_STATE_MAX in mach/mach.h,mach/mach_host.h... yes
+checking for PROCESSOR_CPU_LOAD_INFO in mach/mach.h,mach/mach_host.h... yes
+checking for CPU_STATE_USER in mach/mach.h,mach/mach_host.h... yes
+checking for CPU_STATE_SYSTEM in mach/mach.h,mach/mach_host.h... yes
+checking for CPU_STATE_NICE in mach/mach.h,mach/mach_host.h... yes
+checking for CPU_STATE_IDLE in mach/mach.h,mach/mach_host.h... yes
+checking for sys/param.h... yes
+checking for sys/mount.h... yes
+checking for sys/statfs.h... no
+checking for statfs()... yes
+checking for struct statfs.f_type in sys/param.h,sys/mount.h,sys/statfs.h... no
+checking for struct statfs.f_fstypename in sys/param.h,sys/mount.h... yes
+checking for statvfs() in sys/types.h,sys/statvfs.h... yes
+checking for struct statvfs.f_basetype in sys/types.h,sys/statvfs.h... no
+checking for unistd.h... yes
+checking for sys/sysctl.h... yes
+checking for sys/types.h... yes
+checking for sys/socket.h... yes
+checking for net/if.h... yes
+checking for net/if_types.h... yes
+checking for net/if_mib.h... yes
+checking for getloadavg()... yes
+checking for sysctl()... yes
+checking for struct ifmibdata in unistd.h,sys/sysctl.h,sys/types.h,sys/socket.h,net/if.h,net/if_types.h,net/if_mib.h... yes
+checking for CTL_NET in unistd.h,sys/sysctl.h,sys/types.h,sys/socket.h,net/if.h,net/if_types.h,net/if_mib.h... yes
+checking for PF_LINK in unistd.h,sys/sysctl.h,sys/types.h,sys/socket.h,net/if.h,net/if_types.h,net/if_mib.h... yes
+checking for NETLINK_GENERIC in unistd.h,sys/sysctl.h,sys/types.h,sys/socket.h,net/if.h,net/if_types.h,net/if_mib.h... yes
+checking for IFMIB_IFDATA in unistd.h,sys/sysctl.h,sys/types.h,sys/socket.h,net/if.h,net/if_types.h,net/if_mib.h... yes
+checking for IFDATA_GENERAL in unistd.h,sys/sysctl.h,sys/types.h,sys/socket.h,net/if.h,net/if_types.h,net/if_mib.h... yes
+checking for CTL_KERN in sys/sysctl.h,sys/types.h... yes
+checking for KERN_BOOTTIME in sys/sysctl.h,sys/types.h... yes
+creating extconf.h
+creating Makefile
+
+current directory: /Users/lukasalvo/Documents/Perso/mac-monitor/vendor/bundle/ruby/3.4.0/gems/vmstat-2.3.1/ext/vmstat
+make DESTDIR\= sitearchdir\=./.gem.20251216-20837-n9z9ng sitelibdir\=./.gem.20251216-20837-n9z9ng clean
+
+current directory: /Users/lukasalvo/Documents/Perso/mac-monitor/vendor/bundle/ruby/3.4.0/gems/vmstat-2.3.1/ext/vmstat
+make DESTDIR\= sitearchdir\=./.gem.20251216-20837-n9z9ng sitelibdir\=./.gem.20251216-20837-n9z9ng
+compiling vmstat.c
+linking shared-object vmstat/vmstat.bundle
+
+current directory: /Users/lukasalvo/Documents/Perso/mac-monitor/vendor/bundle/ruby/3.4.0/gems/vmstat-2.3.1/ext/vmstat
+make DESTDIR\= sitearchdir\=./.gem.20251216-20837-n9z9ng sitelibdir\=./.gem.20251216-20837-n9z9ng install
+/usr/bin/install -c -m 0755 vmstat.bundle ./.gem.20251216-20837-n9z9ng/vmstat
+
+current directory: /Users/lukasalvo/Documents/Perso/mac-monitor/vendor/bundle/ruby/3.4.0/gems/vmstat-2.3.1/ext/vmstat
+make DESTDIR\= sitearchdir\=./.gem.20251216-20837-n9z9ng sitelibdir\=./.gem.20251216-20837-n9z9ng clean
