@@ -3,22 +3,27 @@
 
 echo "--- Démarrage du processus de déploiement ---"
 
-# --- NOUVELLE ÉTAPE 1 : NETTOYAGE ---
-echo "1. Nettoyage des logs et des artefacts de build précédents..."
+# --- ÉTAPE 1 : NETTOYAGE & DÉSACTIVATION INSTALLATION LOCALE ---
+echo "1. Nettoyage des logs et des anciens artefacts..."
 
 # Supprimer les fichiers de logs générés (si ils existent)
 rm -f app.log server.log
 
-# Supprimer le répertoire des dépendances installées localement (pour une réinstallation propre)
-# Le dossier 'vendor/bundle' est là où 'bundle install' stocke les gems.
+# Supprimer le répertoire des dépendances installées localement pour libérer de l'espace disque.
 if [ -d "vendor/bundle" ]; then
-    echo "Suppression du dossier 'vendor/bundle'..."
+    echo "Suppression du dossier 'vendor/bundle' pour économiser de la mémoire..."
     rm -rf vendor/bundle
 fi
 
+# DÉSACTIVATION DE L'INSTALLATION LOCALE : 
+# Cela garantit que les prochaines dépendances seront installées dans l'emplacement système
+# par défaut (ex: /opt/homebrew/lib/ruby/gems/...).
+echo "Configuration de Bundler pour utiliser l'emplacement système (résoud le problème de mémoire disque)..."
+bundle config unset path
+
 # --- ÉTAPE 2 : VÉRIFICATION ET INSTALLATION DES DÉPENDANCES ---
-echo "2. Vérification des dépendances Ruby (et réinstallation complète)..."
-# Cette étape va réinstaller toutes les gems dans vendor/bundle/ car il a été supprimé.
+echo "2. Vérification et installation des dépendances Ruby (dans l'emplacement système)..."
+# 'bundle install' utilisera maintenant l'emplacement système.
 bundle install 
 
 # --- ÉTAPE 3 : RECHERCHE DE PORT LIBRE ---
@@ -29,8 +34,7 @@ FREE_PORT=""
 echo "3. Recherche du premier port libre entre $START_PORT et $MAX_PORT..."
 
 for (( PORT = $START_PORT; PORT <= $MAX_PORT; PORT++ )); do
-    # Vérifie si le port est en écoute. On utilise 'ss' ou 'netstat'
-    # Utiliser 'lsof' est plus fiable sur macOS
+    # Utiliser 'lsof' est plus fiable sur macOS pour vérifier si un port est en écoute.
     if ! lsof -i :$PORT -P -n | grep -q LISTEN; then
         FREE_PORT=$PORT
         break
