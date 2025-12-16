@@ -3,7 +3,7 @@ require 'json'
 require 'vmstat'
 require 'sys/filesystem'
 require 'socket'
-require 'rexml/document' # Doit être dans Gemfile pour Ruby > 3.x
+require 'rexml/document'
 require 'pony' 
 
 # Configuration
@@ -51,10 +51,20 @@ end
 # --- UTILITAIRES ---
 def get_cpu_usage
   begin
-    # Commande 'top' compatible Linux/macOS
-    output = `top -l 2 -n 0 | grep "CPU usage" | tail -1`
-    return ($1.to_f + $2.to_f).round(1) if output =~ /([\d\.]+)% user,\s+([\d\.]+)% sys/
-  rescue; return 0.0; end
+    # CORRECTION LINUX : Remplacer 'top -l 2 -n 0' (BSD/macOS) par 'top -b -n 1' (Linux)
+    # Utiliser -b (batch mode) et -n 1 (une seule itération).
+    output = `top -b -n 1 | grep -E '^%?Cpu\\(s\\):'` 
+    
+    # Sur Linux, le format standard contient le pourcentage d'inactivité ('id').
+    if output =~ /(\d+\.\d+|\d+)\s*id/ 
+      idle_cpu = $1.to_f
+      # CPU Usage = 100% - Idle%
+      return (100.0 - idle_cpu).round(1)
+    end
+  rescue => e
+    puts "Error running top command on Linux: #{e.message}"
+    return 0.0 
+  end
   return 0.0
 end
 
@@ -92,14 +102,13 @@ def scan_network
   begin
     local_ip = get_local_ip
     
-    # Vérifie si Nmap est installé et si on a une IP locale
     if local_ip && File.exist?(NMAP_PATH)
       subnet = local_ip.split('.')[0..2].join('.') + '.0/24'
       puts "DEBUG: Scan XML lancé sur #{subnet} via #{NMAP_PATH}..."
       
       cmd = "#{NMAP_PATH} -sn -T4 -oX - #{subnet}"
       
-      # CORRECTION CRITIQUE DE LA SYNTAXE : Lancer la commande complète dans des backticks
+      # CORRECTION CRITIQUE DE LA SYNTAXE NMAP
       xml_output = `sudo #{cmd} 2>/dev/null` 
       
       if $?.success? && !xml_output.empty?
@@ -139,8 +148,6 @@ def scan_network
     end
   rescue => e
     puts "DEBUG: Erreur critique Ruby lors du scan: #{e.message}"
-    # Le scan Nmap nécessite 'sudo', ce qui peut causer des erreurs de permission.
-    # L'utilisateur doit s'assurer qu'il n'y a pas de prompt 'sudo' non géré.
   end
   
   if devices.empty? && (local = get_local_ip)
@@ -215,7 +222,6 @@ Thread.new do
         network_sent: n_s, network_recv: n_r, uptime_seconds: Vmstat.boot_time ? (Time.now - Vmstat.boot_time).to_i : 0
       }
 
-      # Écriture dans un fichier de log minimal (pour démo)
       File.open(LOG_FILE, 'a') do |f|
         f.puts "[#{Time.now.strftime('%Y-%m-%d %H:%M:%S')}] INFO: System snapshot taken. CPU: #{current_data[:cpu_usage]}%, Mem: #{current_data[:memory_percent]}%"
       end
@@ -244,7 +250,7 @@ get '/api/processes' do content_type :json; sort=params[:sort]||'cpu'; limit=(pa
 post '/api/processes/:pid/kill' do content_type :json; Process.kill('TERM', params[:pid].to_i); {success:true}.to_json rescue {success:false}.to_json end
 get '/api/alerts' do content_type :json; HISTORY.empty? ? {alerts:[]}.to_json : {alerts:check_alerts(HISTORY.last), timestamp:Time.now.to_i}.to_json end
 
-# NOUVELLE ROUTE : Lecture et analyse des logs
+# ROUTE : Lecture et analyse des logs
 get '/api/logs' do
   content_type :json
   
