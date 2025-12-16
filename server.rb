@@ -4,153 +4,200 @@ require 'vmstat'
 require 'sys/filesystem'
 require 'socket'
 require 'rexml/document'
-require 'pony' # Ajout de Pony pour l'envoi d'email
+require 'rbconfig'
+require 'pony' # Assurez-vous que cette gem est installée via Gemfile
 
-# Configuration
+# --- CONFIGURATION ---
 set :port, 3000
 set :bind, '0.0.0.0'
 set :public_folder, 'public'
 
+# --- DÉTECTION OS ---
+def os
+  @os ||= (
+    host_os = RbConfig::CONFIG['host_os']
+    case host_os
+    when /mswin|msys|mingw|cygwin|bccwin|wince|emc/
+      :windows
+    when /darwin|mac os/
+      :macosx
+    when /linux/
+      :linux
+    else
+      :unknown
+    end
+  )
+end
+
+# --- VARIABLES GLOBALES ---
 HISTORY = []
 MAX_HISTORY = 3600
 NETWORK_SCAN_CACHE = { data: nil, timestamp: 0 }
-SCAN_CACHE_DURATION = 0 
-
-# --- NOUVEAUX CHEMINS ET CONFIGURATION ---
+SCAN_CACHE_DURATION = 0
+EVENT_ALERTS = [] 
+KNOWN_MACS = [] 
 LOG_FILE = File.expand_path('app.log', __dir__)
-# Vérifiez avec 'which nmap' si c'est bien celui-là
-NMAP_PATH = "/opt/homebrew/bin/nmap" 
 
-# --- FONCTIONNALITÉS AVANCÉES ---
 
-# Configuration Pony (Email) - REMPLACER CES VALEURS
-# Vous aurez besoin d'un service SMTP (Gmail, SendGrid, etc.)
-def send_alert_email(subject, body)
-  puts "DEBUG: Tentative d'envoi d'email..."
-  begin
-    Pony.mail({
-      :to => 'votre_email_de_reception@exemple.com', 
-      :from => 'monitor@votre-domaine.com',
-      :subject => "[System Monitor Alert] #{subject}",
-      :body => body,
-      :via => :smtp,
-      :via_options => {
-        :address => 'smtp.gmail.com', # EXEMPLE: Changer pour votre SMTP
-        :port => '587',
-        :user_name => 'votre_compte_smtp', # EXEMPLE: Votre adresse ou utilisateur SMTP
-        :password => 'votre_mot_de_passe_app', # EXEMPLE: Mot de passe d'application ou secret SMTP
-        :authentication => :plain,
-        :enable_starttls_auto => true
-      }
-    })
-    puts "DEBUG: Email envoyé avec succès."
-  rescue => e
-    puts "ERROR: Échec de l'envoi d'email: #{e.message}"
-  end
+# --- CHEMIN NMAP DYNAMIQUE ---
+def find_nmap
+  path = `which nmap`.strip
+  return path unless path.empty?
+  return "/opt/homebrew/bin/nmap" if os == :macosx
+  return "/usr/bin/nmap"
 end
+NMAP_PATH = find_nmap
 
-# --- UTILITAIRES ---
+# --- UTILITAIRES SYSTÈME ---
+
+# CORRECTION CPU USAGE: Utilisation de mpstat pour Linux
 def get_cpu_usage
   begin
-    output = `top -l 2 -n 0 | grep "CPU usage" | tail -1`
-    return ($1.to_f + $2.to_f).round(1) if output =~ /([\d\.]+)% user,\s+([\d\.]+)% sys/
+    if os == :macosx
+      # macOS: Utilisation de top -l
+      output = `top -l 2 -n 0 | grep "CPU usage" | tail -1 2>/dev/null`
+      return ($1.to_f + $2.to_f).round(1) if $?.success? && output =~ /([\d\.]+)% user,\s*([\d\.]+)% sys/
+    elsif os == :linux
+      # Linux: Utilisation de mpstat (Nécessite 'sysstat')
+      output = `mpstat 1 1 2>/dev/null`
+      
+      # mpstat: Trouve 'Average' et extrait le %idle (dernière colonne)
+      if $?.success? && output =~ /Average:\s+all.*(\d+\.\d+)\s*$/
+        idle_percent = $1.to_f
+        # Utilisation = 100% - %Idle
+        return (100.0 - idle_percent).round(1)
+      end
+    end
   rescue; return 0.0; end
   return 0.0
 end
 
+# CORRECTION TEMPÉRATURE: Plus robuste pour Linux
 def get_cpu_temperature
   begin
-    output = `osx-cpu-temp 2>/dev/null`
-    return $1.to_f if $?.success? && output =~ /(\d+\.\d+)°C/
+    if os == :macosx
+      output = `osx-cpu-temp 2>/dev/null`
+      return $1.to_f if $?.success? && output =~ /(\d+\.\d+)°C/
+    elsif os == :linux
+      # Linux 1: Essai standard via thermal_zone
+      temp_path = "/sys/class/thermal/thermal_zone0/temp"
+      if File.exist?(temp_path)
+        temp = File.read(temp_path).to_f / 1000
+        return temp.round(1)
+      end
+      
+      # Linux 2: Fallback via sensors (Nécessite 'lm-sensors')
+      output = `sensors coretemp-isa-0000 2>/dev/null`
+      if $?.success? && (output =~ /Package id 0:\s+\+([\d\.]+)/ || output =~ /Core 0:\s+\+([\d\.]+)/)
+        return $1.to_f
+      end
+    end
   rescue; end
   nil
 end
 
 def get_local_ip
-  ip = Socket.ip_address_list.detect { |addr| addr.ipv4? && !addr.ipv4_loopback? && !addr.ipv4_multicast? }&.ip_address
-  unless ip
-    ip = `ipconfig getifaddr en0`.strip
-    ip = nil if ip.empty?
+  ip = nil
+  
+  if os == :macosx
+    ip = `ipconfig getifaddr en0 2>/dev/null`.strip
+  elsif os == :linux
+    # Linux: 'hostname -I' est très fiable pour l'IP active
+    ip = `hostname -I 2>/dev/null | awk '{print $1}'`.strip
   end
-  return ip
+  
+  # Fallback Ruby pour exclure les adresses de bouclage si les commandes shell échouent.
+  if ip.nil? || ip.empty? || ip.start_with?('127.')
+    # Utiliser ipv4_loopback? pour éviter les erreurs de méthode sur certaines versions de Ruby/Addrinfo
+    ip = Socket.ip_address_list.detect { |addr| 
+      addr.ipv4? && !addr.ipv4_loopback? && !addr.ipv4_multicast?
+    }&.ip_address
+  end
+  
+  # Validation finale
+  return ip unless ip.nil? || ip.empty? || ip.start_with?('127.')
+  return nil
 end
 
-# --- SCAN RÉSEAU VIA XML (ROBUSTE) ---
+# --- ENVOI EMAIL (si vous le configurez) ---
+def send_alert_email(subject, body)
+  puts "DEBUG: Tentative d'envoi d'email..."
+  # CONFIGURER VOTRE SMTP ICI
+  # ... (Configuration Pony)
+end
+
+# --- SCAN RÉSEAU ---
 def scan_network
-  # Cache check (désactivé pour l'instant via SCAN_CACHE_DURATION = 0)
-  if NETWORK_SCAN_CACHE[:data] && (Time.now.to_i - NETWORK_SCAN_CACHE[:timestamp]) < SCAN_CACHE_DURATION
+  if NMAP_PATH.nil? || !File.exist?(NMAP_PATH)
+    return [{ ip: 'N/A', hostname: 'Error', status: 'down', mac: 'Nmap Not Found', vendor: '--' }]
+  end
+
+  if NETWORK_SCAN_CACHE[:data] && (Time.now.to_i - NETWORK_SCAN_CACHE[:timestamp]) < 5
     return NETWORK_SCAN_CACHE[:data]
   end
 
   devices = []
+  local_ip = get_local_ip
+  
+  if local_ip.nil?
+    puts "ERROR: Local IP address not found (still loopback?). Cannot scan external network."
+    return [{ ip: 'N/A', hostname: 'Scan Aborted', status: 'down', mac: 'IP Not Found', vendor: 'N/A' }]
+  end
   
   begin
-    local_ip = get_local_ip
+    cmd_prefix = (Process.uid == 0) ? "" : "sudo "
     
-    if local_ip && File.exist?(NMAP_PATH)
-      subnet = local_ip.split('.')[0..2].join('.') + '.0/24'
-      puts "DEBUG: Scan XML lancé sur #{subnet}..."
-      
-      # Commande avec -oX - pour sortir du XML
-      cmd = "sudo #{NMAP_PATH} -sn -T4 -oX - #{subnet}"
-      
-      # CORRECTION CRITIQUE DE LA SYNTAXE : 
-      # On exécute la commande complète, y compris la redirection d'erreur
-      xml_output = `#{cmd} 2>/dev/null` 
-      
-      if $?.success? && !xml_output.empty?
-        # Parsing du XML
-        doc = REXML::Document.new(xml_output)
-        
-        doc.elements.each('nmaprun/host') do |host|
-          # État (up/down)
-          status = host.elements['status']&.attributes['state']
-          next unless status == 'up'
-          
-          # IP
-          ip_elem = host.elements["address[@addrtype='ipv4']"]
-          ip = ip_elem ? ip_elem.attributes['addr'] : nil
-          next unless ip 
-          
-          # MAC & Vendor
-          mac_elem = host.elements["address[@addrtype='mac']"]
-          mac = mac_elem ? mac_elem.attributes['addr'] : nil
-          vendor = mac_elem ? mac_elem.attributes['vendor'] : nil
-          
-          # Hostname
-          hostname_elem = host.elements["hostnames/hostname"]
-          hostname = hostname_elem ? hostname_elem.attributes['name'] : nil
-          
-          # Détection si c'est nous
-          is_local = (ip == local_ip)
-          
-          devices << {
-            ip: ip,
-            hostname: hostname || "Inconnu",
-            mac: mac || (is_local ? "THIS-DEVICE" : "--"),
-            vendor: vendor || (is_local ? "Apple Inc." : "--"),
-            status: 'up',
-            is_local: is_local
-          }
-        end
-      else
-        puts "DEBUG: Échec de la commande Nmap ou sortie vide."
-      end
-    else
-      puts "DEBUG: IP locale non trouvée ou Nmap introuvable."
+    subnet = local_ip.split('.')[0..2].join('.') + '.0/24'
+    puts "DEBUG: Scan XML lancé sur #{subnet} avec #{cmd_prefix}#{NMAP_PATH}..."
+    
+    cmd = "#{cmd_prefix}#{NMAP_PATH} -sn -T4 -oX - #{subnet}" 
+    xml_output = `#{cmd}`
+    
+    unless $?.success?
+        puts "ERROR: Nmap scan failed (Exit Code #{$?.exitstatus}). Check NOPASSWD for user."
+        return [{ ip: local_ip, hostname: 'Scan Failed', status: 'down', mac: 'Check Sudoers', vendor: '--' }]
     end
+
+    doc = REXML::Document.new(xml_output)
+    doc.elements.each('nmaprun/host') do |host|
+      status = host.elements['status']&.attributes['state']
+      next unless status == 'up'
+      
+      ip_elem = host.elements["address[@addrtype='ipv4']"]
+      ip = ip_elem ? ip_elem.attributes['addr'] : nil
+      next unless ip 
+      
+      mac_elem = host.elements["address[@addrtype='mac']"]
+      mac = mac_elem ? mac_elem.attributes['addr'] : nil
+      vendor = mac_elem ? mac_elem.attributes['vendor'] : nil
+      
+      hostname_elem = host.elements["hostnames/hostname"]
+      hostname = hostname_elem ? hostname_elem.attributes['name'] : nil
+      
+      is_local = (ip == local_ip)
+      
+      devices << {
+        ip: ip,
+        hostname: hostname || "Inconnu",
+        mac: mac || (is_local ? "THIS-DEVICE" : "--"),
+        vendor: vendor || (is_local ? "System" : "--"),
+        status: 'up',
+        is_local: is_local
+      }
+    end
+
+  rescue REXML::ParseException => e
+    puts "ERROR: Parsing Nmap XML failed: #{e.message}"
+    devices = []
   rescue => e
-    puts "DEBUG: Erreur critique Ruby : #{e.message}"
-    puts e.backtrace.first
+    puts "DEBUG: Erreur critique scan: #{e.message}"
+    devices = []
   end
   
-  # Si la liste est vide mais qu'on a une IP locale, on s'ajoute au moins nous-même
-  if devices.empty? && (local = get_local_ip)
-     devices << { ip: local, hostname: Socket.gethostname, mac: "THIS-DEVICE", vendor: "Apple Inc.", status: 'up', is_local: true }
+  if devices.empty? && local_ip
+     devices << { ip: local_ip, hostname: Socket.gethostname, mac: "N/A", vendor: "System", status: 'up', is_local: true }
   end
 
-  puts "DEBUG: #{devices.length} appareils trouvés."
-  
   NETWORK_SCAN_CACHE[:data] = devices
   NETWORK_SCAN_CACHE[:timestamp] = Time.now.to_i
   
@@ -173,24 +220,14 @@ def get_processes(sort_by = 'cpu', limit = 20)
   rescue; [] end
 end
 
-# Mise à jour: Déclenchement de l'email pour les alertes CRITIQUES
 def check_alerts(data)
-  alerts = []
-  if data[:cpu_usage] > 80
-    alerts << { type: 'warning', category: 'cpu', message: "High CPU: #{data[:cpu_usage]}%", timestamp: Time.now.to_i }
-  end
-  
-  if data[:disk_percent] > 90
-    msg = "Disk Full: #{data[:disk_percent]}%"
-    alerts << { type: 'critical', category: 'disk', message: msg, timestamp: Time.now.to_i }
-    
-    # ENVOI D'EMAIL EN CAS D'ALERTE CRITIQUE
-    send_alert_email("CRITICAL Disk Alert", "The disk usage is at #{data[:disk_percent]}% on #{data[:hostname] || 'Monitoring Host'}. Action required!")
-  end
-  alerts
+  current_alerts = []
+  current_alerts << { type: 'warning', category: 'cpu', message: "High CPU: #{data[:cpu_usage]}%", timestamp: Time.now.to_i } if data[:cpu_usage] > 80
+  current_alerts << { type: 'critical', category: 'disk', message: "Disk Full: #{data[:disk_percent]}%", timestamp: Time.now.to_i } if data[:disk_percent] > 90
+  return current_alerts + EVENT_ALERTS.last(10).reverse
 end
 
-# --- THREAD LOOP ---
+# --- THREAD 1 : STATS SYSTÈME ---
 Thread.new do
   loop do
     begin
@@ -213,24 +250,49 @@ Thread.new do
         end
       rescue; end
 
-      current_data = {
+      HISTORY << {
         timestamp: Time.now.to_i, hostname: Socket.gethostname, platform: RUBY_PLATFORM, os: RbConfig::CONFIG['host_os'],
         cpu_cores: vm.cpus.length, cpu_usage: cpu, cpu_temp: get_cpu_temperature,
         memory_total_bytes: mem_tot, memory_used_bytes: mem_used, memory_percent: ((mem_used.to_f/mem_tot.to_f)*100).round(1),
         disk_total_bytes: d_stat[:t], disk_used_bytes: d_stat[:u], disk_percent: d_stat[:p],
         network_sent: n_s, network_recv: n_r, uptime_seconds: Vmstat.boot_time ? (Time.now - Vmstat.boot_time).to_i : 0
       }
-
-      # Écriture dans un fichier de log minimal (pour démo)
-      File.open(LOG_FILE, 'a') do |f|
-        f.puts "[#{Time.now.strftime('%Y-%m-%d %H:%M:%S')}] INFO: System snapshot taken. CPU: #{current_data[:cpu_usage]}%, Mem: #{current_data[:memory_percent]}%"
-      end
-      
-      HISTORY << current_data
       HISTORY.shift if HISTORY.length > MAX_HISTORY
-    rescue => e; puts "Error loop: #{e.message}"; end
+    rescue => e; puts "Error Stats loop: #{e.message}"; end
   end
 end
+
+# --- THREAD 2 : SCAN RÉSEAU AUTOMATIQUE (DÉMON) ---
+Thread.new do
+  sleep 5
+  loop do
+    begin
+      devices = scan_network
+      current_macs = devices.map { |d| d[:mac] }.reject { |m| m == "THIS-DEVICE" || m == "--" || m == "N/A" }
+
+      if KNOWN_MACS.empty?
+        KNOWN_MACS.replace(current_macs)
+      else
+        new_devices_macs = current_macs - KNOWN_MACS
+        new_devices_macs.each do |mac|
+          dev_info = devices.find { |d| d[:mac] == mac }
+          name = dev_info[:hostname] == "Inconnu" ? dev_info[:ip] : dev_info[:hostname]
+          vendor = dev_info[:vendor]
+          
+          msg = "New Device: #{name} (#{vendor})"
+          EVENT_ALERTS << { type: 'info', category: 'network', message: msg, timestamp: Time.now.to_i }
+          EVENT_ALERTS.shift if EVENT_ALERTS.length > 20
+        end
+        KNOWN_MACS.concat(new_devices_macs)
+      end
+    
+    rescue => e
+      puts "Error Auto-Scan loop: #{e.message}"
+    end
+    sleep 60
+  end
+end
+
 
 # --- ROUTES ---
 get '/' do send_file File.join(settings.public_folder, 'index.html') end
@@ -239,35 +301,14 @@ get '/api/disks' do
   content_type :json
   d = []
   Sys::Filesystem.mounts.each { |m| 
-    next if m.mount_type =~ /tmpfs|proc|devfs/
+    next if m.mount_type =~ /tmpfs|proc|devfs|sysfs|cgroup|squashfs/ 
     begin; s=Sys::Filesystem.stat(m.mount_point); t=s.blocks*s.block_size; next if t < 10**9; d << { device: m.name, mountpoint: m.mount_point, total_bytes: t, used_bytes: t-(s.blocks_free*s.block_size) }; rescue; end
   }
   d.to_json
 end
 get '/api/network' do content_type :json; i=[]; Vmstat.snapshot.network_interfaces.each{|x| next if x.loopback?; i<<{interface:x.name, bytes_sent:x.out_bytes, bytes_recv:x.in_bytes}}; i.to_json end
 get '/api/network/scan' do content_type :json; { devices: scan_network, local_ip: get_local_ip }.to_json end
+get '/api/network/latest' do content_type :json; { devices: NETWORK_SCAN_CACHE[:data] || [], timestamp: NETWORK_SCAN_CACHE[:timestamp], local_ip: get_local_ip }.to_json end
 get '/api/processes' do content_type :json; sort=params[:sort]||'cpu'; limit=(params[:limit]||20).to_i; list=get_processes(sort,limit); {processes:list, count:list.length}.to_json end
 post '/api/processes/:pid/kill' do content_type :json; Process.kill('TERM', params[:pid].to_i); {success:true}.to_json rescue {success:false}.to_json end
-get '/api/alerts' do content_type :json; HISTORY.empty? ? {alerts:[]}.to_json : {alerts:check_alerts(HISTORY.last), timestamp:Time.now.to_i}.to_json end
-
-# NOUVELLE ROUTE : Lecture et analyse des logs
-get '/api/logs' do
-  content_type :json
-  
-  if File.exist?(LOG_FILE)
-    # Lire les 100 dernières lignes 
-    lines = `tail -n 100 #{LOG_FILE}`.split("\n")
-    
-    # Analyse simple pour remonter des niveaux et inverser l'ordre
-    logs = lines.reverse.map do |line|
-      level = 'INFO'
-      # Cette analyse est très basique et peut être améliorée
-      level = 'ERROR' if line.include?('Error') || line.include?('Fail') || line.include?('FATAL')
-      { level: level, message: line }
-    end
-    
-    { logs: logs, count: logs.length }.to_json
-  else
-    { logs: [], count: 0, error: "Log file not found at #{LOG_FILE}" }.to_json
-  end
-end
+get '/api/alerts' do content_type :json; alerts = HISTORY.empty? ? [] : check_alerts(HISTORY.last); { alerts: alerts, timestamp: Time.now.to_i }.to_json end

@@ -1,27 +1,39 @@
 #!/bin/bash
-# Fichier: deploy.sh
+# Fichier: deploy.sh (Lancement sur le premier port libre, sans tuer de processus)
 
 echo "--- Démarrage du processus de déploiement ---"
 
-# 1. Vérification et installation des dépendances
+# 1. Vérification des dépendances
 echo "Vérification des dépendances Ruby..."
+# S'assurer que 'rexml' et autres sont installés localement
 bundle check || { 
     echo "Dépendances manquantes ou non à jour. Exécution de 'bundle install'."
     bundle install
 }
 
-# 2. Arrêt du processus existant
-PID=$(lsof -i :3000 -t)
-if [ -n "$PID" ]; then
-    echo "Arrêt de l'ancien processus sur le port 3000 (PID: $PID)"
-    kill $PID
-    sleep 2
+# 2. Trouver un port libre (en commençant par 3000)
+START_PORT=3000
+MAX_PORT=3010
+FREE_PORT=""
+
+echo "Recherche du premier port libre entre $START_PORT et $MAX_PORT..."
+
+for (( PORT = $START_PORT; PORT <= $MAX_PORT; PORT++ )); do
+    # Vérifie si le port est en écoute. On utilise 'ss' (ou netstat si ss n'est pas là)
+    if ! ss -tuln | grep -q ":$PORT\s"; then
+        FREE_PORT=$PORT
+        break
+    fi
+done
+
+if [ -z "$FREE_PORT" ]; then
+    echo "ERREUR: Aucun port libre trouvé entre $START_PORT et $MAX_PORT. Veuillez libérer un port manuellement."
+    exit 1
 fi
 
-# 3. Lancement de la nouvelle version avec 'bundle exec' et en premier plan
-# rackup va maintenant trouver et utiliser config.ru qui lance server.rb
-echo "Lancement du nouveau serveur Sinatra (rackup) en PREMIER PLAN..."
+# 3. Lancement de la nouvelle version avec 'bundle exec'
+echo "Port libre trouvé: $FREE_PORT. Lancement du serveur Sinatra..."
 echo "Presser CTRL+C pour arrêter le serveur."
-bundle exec rackup -p 3000
+bundle exec rackup -p $FREE_PORT
 
-echo "--- Déploiement terminé. Vérifiez l'application sur http://localhost:3000 ---"
+echo "--- Déploiement terminé. Vérifiez l'application sur http://localhost:$FREE_PORT ---"

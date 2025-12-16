@@ -7,5 +7,5 @@ gem 'puma'
 gem 'rackup'
 gem 'sys-filesystem'
 gem 'vmstat'
-gem 'pony' # Assurez-vous que cette ligne est présente
-gem 'rexml'
+gem 'pony'  # Pour les notifications par email (requête précédente)
+gem 'rexml' # Pour le parsing XML de Nmap (correction du LoadError)
