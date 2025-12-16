@@ -1,5 +1,5 @@
 /**
- * Fichier : app.js (Version fusionnée)
+ * Fichier : app.js (Version corrigée avec DOMContentLoaded)
  * Conserve les graphiques d'origine + les nouveaux outils.
  */
 
@@ -57,10 +57,12 @@ function initNav() {
     });
   });
 
-  // Listeners pour les nouvelles pages
+  // Listeners pour les nouvelles pages et les boutons de contrôle
   document.getElementById('scan-network-btn')?.addEventListener('click', scanNetwork);
   document.getElementById('sort-cpu-btn')?.addEventListener('click', () => setProcessSort('cpu'));
   document.getElementById('sort-mem-btn')?.addEventListener('click', () => setProcessSort('mem'));
+  document.getElementById('refresh')?.addEventListener('click', () => fetchData(true));
+  document.getElementById('interval')?.addEventListener('change', () => fetchData()); // Ajout de l'écouteur change
 }
 
 function switchPage(page) {
@@ -87,6 +89,7 @@ function switchPage(page) {
   } else if (page === 'alerts') {
     fetchAlerts();
   } else {
+    // Pages dashboard, cpu, memory, disk, network, uptime
     if (page === 'disk' || page === 'network') fetchDisks();
     fetchData(); 
   }
@@ -94,17 +97,24 @@ function switchPage(page) {
 
 // --- Récupération des Données Système (Graphiques) ---
 
-async function fetchData() {
+async function fetchData(force = false) {
   try {
     const res = await fetch('/api/system');
     if (!res.ok) throw new Error('Échec fetch system');
     const data = await res.json();
     
+    // Mettre à jour la température
+    document.getElementById('cpu-temp').textContent = data.length > 0 && data[data.length - 1].cpu_temp ? 
+        `${data[data.length - 1].cpu_temp}°C` : '--';
+
     const minutes = parseInt(document.getElementById('interval').value);
     const cutoff = Date.now() / 1000 - minutes * 60;
     const filtered = data.filter(d => d.timestamp >= cutoff);
     
-    if (filtered.length === 0) return;
+    if (filtered.length === 0) {
+      console.warn("No data points available after filtering.");
+      return;
+    }
     const latest = filtered[filtered.length - 1];
     
     // Switch vers vos fonctions originales
@@ -240,7 +250,7 @@ function updateMemory(filtered, latest) {
   document.getElementById('mem-available').textContent = formatBytes(memAvailableBytes);
   document.getElementById('mem-max').textContent = formatBytes(Math.max(...memValues.map(v => v * k))); 
   document.getElementById('mem-avg').textContent = avg.toFixed(2) + ' ' + unit;
-  document.getElementById('mem-growth').textContent = '0 MB/min';
+  document.getElementById('mem-growth').textContent = '0 MB/min'; 
   document.getElementById('mem-estimate').textContent = 'Never';
 
   updateChart('memDetailChart', {
@@ -263,17 +273,24 @@ function updateMemory(filtered, latest) {
 }
 
 function updateDisk(filtered, latest) {
-    const disk = selectedDisk || { used_bytes: latest.disk_used_bytes || 0, total_bytes: latest.disk_total_bytes || 0, used_percent: latest.disk_percent || 0 };
-    const used = disk.used_bytes;
-    const total = disk.total_bytes;
+    const diskToMonitor = selectedDisk || { 
+        used_bytes: latest.disk_used_bytes || 0, 
+        total_bytes: latest.disk_total_bytes || 0, 
+        used_percent: latest.disk_percent || 0,
+        mountpoint: 'Primary OS Disk' 
+    };
+    
+    const used = diskToMonitor.used_bytes;
+    const total = diskToMonitor.total_bytes;
     const free = total - used;
+    const percent = total > 0 ? ((used / total) * 100).toFixed(1) : '0.0';
     
     document.getElementById('disk-used').textContent = formatBytes(used);
-    document.getElementById('disk-percent').textContent = ((used / total) * 100).toFixed(1) + '%';
+    document.getElementById('disk-percent').textContent = percent + '%';
     document.getElementById('disk-total').textContent = formatBytes(total);
     document.getElementById('disk-free').textContent = formatBytes(free);
-    document.getElementById('disk-status').textContent = ((used/total) > 0.9) ? 'Critique' : 'OK';
-    document.getElementById('disk-info').textContent = `Volume: ${formatBytes(free)} libre.`;
+    document.getElementById('disk-status').textContent = (parseFloat(percent) > 90) ? 'Critique' : 'OK';
+    document.getElementById('disk-info').textContent = `Volume: ${diskToMonitor.mountpoint || 'N/A'} - ${formatBytes(free)} libre.`;
     
     updateChart('diskPieChart', {
       type: 'doughnut',
@@ -301,7 +318,7 @@ async function updateNetwork(filtered, latest) {
   let upSpeed = 0, downSpeed = 0;
   if (recent.length >= 2) {
     const last = recent[recent.length - 1];
-    const prev = recent[recent.length - 2]; // Comparaison avec N-1
+    const prev = recent[recent.length - 2]; 
     const timeDiff = last.timestamp - prev.timestamp;
     if (timeDiff > 0) {
       upSpeed = Math.max(0, (last.network_sent - prev.network_sent) / timeDiff);
@@ -311,10 +328,10 @@ async function updateNetwork(filtered, latest) {
   document.getElementById('net-up-speed').textContent = formatBytes(upSpeed) + '/s';
   document.getElementById('net-down-speed').textContent = formatBytes(downSpeed) + '/s';
   
-  const k = unitPref === 'decimal' ? 1000 : 1024;
+  const k = unitPref === 'decimal' ? 1000 : 1024; // k est pour la conversion B/s -> KB/s ou KiB/s
   const labels = filtered.map(d => new Date(d.timestamp * 1000).toLocaleTimeString());
   
-  // Recalcul des vitesses pour tout l'historique
+  // Recalcul des vitesses pour tout l'historique (en K/s)
   const sentData = filtered.map((d, i) => {
     if (i === 0) return 0;
     const prev = filtered[i - 1];
@@ -334,8 +351,8 @@ async function updateNetwork(filtered, latest) {
     data: {
       labels,
       datasets: [
-        { label: 'Envoi', data: sentData, borderColor: '#ff6b35', backgroundColor: 'rgba(255, 107, 53, 0.1)', tension: 0.4, fill: true },
-        { label: 'Réception', data: recvData, borderColor: '#4ec9b0', backgroundColor: 'rgba(78, 201, 176, 0.1)', tension: 0.4, fill: true }
+        { label: `Envoi (${unitPref === 'decimal' ? 'KB/s' : 'KiB/s'})`, data: sentData, borderColor: '#ff6b35', backgroundColor: 'rgba(255, 107, 53, 0.1)', tension: 0.4, fill: true },
+        { label: `Réception (${unitPref === 'decimal' ? 'KB/s' : 'KiB/s'})`, data: recvData, borderColor: '#4ec9b0', backgroundColor: 'rgba(78, 201, 176, 0.1)', tension: 0.4, fill: true }
       ]
     },
     options: getChartOptions()
@@ -346,15 +363,19 @@ async function updateNetwork(filtered, latest) {
     const res = await fetch('/api/network');
     const interfaces = await res.json();
     const container = document.getElementById('network-interfaces');
-    if (container && interfaces.length > 0) {
-      let html = '<div class="stats-container">';
-      interfaces.forEach(iface => {
-        html += `<div class="stat-item"><span class="stat-label"><i class="fas fa-ethernet"></i> ${iface.interface}</span><span class="stat-value">↑ ${formatBytes(iface.bytes_sent)} / ↓ ${formatBytes(iface.bytes_recv)}</span></div>`;
-      });
-      html += '</div>';
-      container.innerHTML = html;
+    if (container) {
+      if (interfaces.length > 0) {
+        let html = '<div class="chart-header"><h3><i class="fas fa-list"></i> Interface Details</h3></div><div class="stats-container">';
+        interfaces.forEach(iface => {
+          html += `<div class="stat-item"><span class="stat-label"><i class="fas fa-ethernet"></i> ${iface.interface}</span><span class="stat-value">↑ ${formatBytes(iface.bytes_sent)} / ↓ ${formatBytes(iface.bytes_recv)}</span></div>`;
+        });
+        html += '</div>';
+        container.innerHTML = html;
+      } else {
+        container.innerHTML = '<div class="chart-header"><h3><i class="fas fa-list"></i> Interface Details</h3></div><p style="padding: 20px; color: #9fa0a4;">No network interfaces found (excluding loopback).</p>';
+      }
     }
-  } catch (err) {}
+  } catch (err) { console.error('Erreur interfaces réseau', err); }
 }
 
 function updateUptime(filtered, latest) {
@@ -369,8 +390,9 @@ function updateUptime(filtered, latest) {
   
   const circle = document.getElementById('uptime-circle');
   if (circle) {
+    const maxSeconds = 30 * 24 * 3600; 
     const circumference = 2 * Math.PI * 90;
-    const progress = Math.min(uptimeSeconds / (30 * 24 * 3600), 1);
+    const progress = Math.min(uptimeSeconds / maxSeconds, 1); 
     circle.style.strokeDasharray = circumference;
     circle.style.strokeDashoffset = circumference - progress * circumference;
   }
@@ -405,10 +427,10 @@ async function scanNetwork() {
       });
       html += '</tbody></table>';
       container.innerHTML = html;
-      status.textContent = `Found ${data.devices.length} devices.`;
+      status.textContent = `Found ${data.devices.length} devices. Local IP: ${data.local_ip || 'N/A'}`;
     } else {
         container.innerHTML = '<div class="empty-state"><p>No devices found.</p></div>';
-        status.textContent = 'Scan finished.';
+        status.textContent = 'Scan finished. No devices found.';
     }
   } catch (err) { status.textContent = 'Error during scan.'; }
   btn.disabled = false; btn.innerHTML = '<i class="fas fa-search"></i> Scan Network';
@@ -427,29 +449,44 @@ async function fetchProcesses() {
     const data = await res.json();
     const container = document.getElementById('processes-table-container');
     
+    document.getElementById('process-count').textContent = data.processes && data.processes.length > 0 ? 
+        `Top ${data.processes.length} by ${currentSort.toUpperCase()}` : 'No processes found';
+
     if (data.processes && data.processes.length > 0) {
       let html = '<table class="styled-table"><thead><tr><th>PID</th><th>User</th><th>CPU</th><th>MEM</th><th>Command</th><th>Action</th></tr></thead><tbody>';
       data.processes.forEach(proc => {
         const cpuClass = proc.cpu > 50 ? 'high' : (proc.cpu > 20 ? 'medium' : 'low');
+        const memClass = proc.mem > 50 ? 'high' : (proc.mem > 20 ? 'medium' : 'low');
         html += `<tr>
             <td style="color:#9fa0a4;">${proc.pid}</td>
             <td>${proc.user}</td>
             <td><span class="metric-badge ${cpuClass}">${proc.cpu.toFixed(1)}%</span></td>
-            <td><span class="metric-badge low">${proc.mem.toFixed(1)}%</span></td>
-            <td style="font-family:monospace; max-width:200px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;">${proc.command}</td>
+            <td><span class="metric-badge ${memClass}">${proc.mem.toFixed(1)}%</span></td>
+            <td style="font-family:monospace; max-width:200px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;" title="${proc.command}">${proc.command}</td>
             <td><button class="btn-kill" onclick="killProcess(${proc.pid})"><i class="fas fa-times"></i></button></td>
         </tr>`;
       });
       html += '</tbody></table>';
       container.innerHTML = html;
-      document.getElementById('process-count').textContent = `Top 20 by ${currentSort.toUpperCase()}`;
+    } else {
+        container.innerHTML = '<div class="empty-state"><p>No processes found.</p></div>';
     }
   } catch (err) { console.error(err); }
 }
 
 async function killProcess(pid) {
     if(!confirm(`Terminate process ${pid}?`)) return;
-    await fetch(`/api/processes/${pid}/kill`, { method: 'POST' });
+    try {
+        const res = await fetch(`/api/processes/${pid}/kill`, { method: 'POST' });
+        const data = await res.json();
+        if(data.success) {
+            alert(`Process ${pid} terminated.`);
+        } else {
+            alert(`Failed to terminate process ${pid}.`);
+        }
+    } catch(e) {
+        alert(`An error occurred while terminating process ${pid}.`);
+    }
     fetchProcesses();
 }
 
@@ -511,193 +548,87 @@ function getChartOptions(extra = {}) {
   };
 }
 
-// Settings Logic (Simplifié pour tenir ici, mais fonctionnel)
+// Settings Logic
 function updateSettingsPage() {
     initPrefs();
-    // Re-fill disk select logic similar to original...
     fetchDisks().then(devices => {
         const sel = document.getElementById('settings-disk-select');
         if(!sel) return;
         sel.innerHTML = '';
         const def = document.createElement('option');
-        def.text = "Primary OS Disk"; def.value = "default";
+        def.text = "Primary OS Disk (Default)"; def.value = "default";
+        const isDefaultSelected = !selectedDisk; 
+        def.selected = isDefaultSelected;
         sel.add(def);
+
         devices.forEach(d => {
             const opt = document.createElement('option');
             opt.text = `${d.mountpoint} (${formatBytes(d.total_bytes)})`;
             opt.value = JSON.stringify(d);
+            if(selectedDisk && selectedDisk.mountpoint === d.mountpoint) {
+                 opt.selected = true;
+            }
             sel.add(opt);
         });
+
+        document.querySelector(`input[name="unit-pref"][value="${unitPref}"]`).checked = true;
+        const storedRate = localStorage.getItem('refreshRate') || '5000';
+        document.getElementById('settings-refresh-rate').value = storedRate;
+
+        document.getElementById('save-settings')?.addEventListener('click', saveSettings);
+        document.getElementById('reset-settings')?.addEventListener('click', resetSettings);
     });
 }
 
-document.getElementById('save-settings')?.addEventListener('click', () => {
+function saveSettings() {
     localStorage.setItem('unitPref', document.querySelector('input[name="unit-pref"]:checked').value);
     const sel = document.getElementById('settings-disk-select');
-    if(sel.value !== 'default') localStorage.setItem('selectedDisk', sel.value);
-    else localStorage.removeItem('selectedDisk');
+    if(sel.value !== 'default') {
+        localStorage.setItem('selectedDisk', sel.value);
+        selectedDisk = JSON.parse(sel.value);
+    }
+    else {
+        localStorage.removeItem('selectedDisk');
+        selectedDisk = null;
+    }
     localStorage.setItem('refreshRate', document.getElementById('settings-refresh-rate').value);
     
     initPrefs(); 
     clearInterval(intervalID);
-    intervalID = setInterval(fetchData, parseInt(localStorage.getItem('refreshRate')));
-    fetchData();
+    intervalID = setInterval(mainLoop, parseInt(localStorage.getItem('refreshRate')));
+    switchPage(currentPage); 
     alert('Settings Saved');
-});
+}
 
-document.getElementById('export-json').addEventListener('click', () => { window.location.href = '/api/system'; });
+function resetSettings() {
+    localStorage.clear();
+    location.reload(); 
+}
 
-// --- Start ---
-initPrefs();
-initNav();
-switchPage('dashboard');
-const rate = parseInt(localStorage.getItem('refreshRate') || '5000');
-intervalID = setInterval(() => {
+// --- Point d'entrée pour le démarrage et la boucle ---
+function mainLoop() {
     if(['dashboard','cpu','memory','disk','network','uptime'].includes(currentPage)) fetchData();
     if(currentPage === 'processes') fetchProcesses();
     if(currentPage === 'alerts') fetchAlerts();
-}, rate);
-fetchData();
-
-
-// Fonction pour récupérer et afficher les alertes
-async function updateAlerts() {
-    try {
-        const response = await fetch('/api/alerts');
-        const data = await response.json();
-        
-        const container = document.getElementById('alerts-container');
-        const countBadge = document.getElementById('alert-count');
-        const lastCheck = document.getElementById('last-check');
-        
-        // Mettre à jour le compteur global
-        const alertCount = data.alerts ? data.alerts.length : 0;
-        if(countBadge) countBadge.textContent = alertCount;
-        
-        // Mettre à jour l'heure du check
-        const now = new Date();
-        if(lastCheck) lastCheck.textContent = now.toLocaleTimeString();
-
-        // Si aucune alerte
-        if (!data.alerts || data.alerts.length === 0) {
-            container.innerHTML = `
-                <div class="empty-state">
-                    <i class="fas fa-check-circle" style="color: #4ec9b0;"></i>
-                    <p>Tout est calme. Aucune alerte.</p>
-                </div>`;
-            return;
-        }
-
-        // Si on a des alertes, on vide le conteneur et on remplit
-        container.innerHTML = '';
-        
-        data.alerts.forEach(alert => {
-            // Déterminer l'icône selon la catégorie
-            let iconClass = 'fa-info-circle';
-            if (alert.category === 'network') iconClass = 'fa-network-wired';
-            if (alert.category === 'cpu') iconClass = 'fa-microchip';
-            if (alert.category === 'disk') iconClass = 'fa-hdd';
-
-            // Formater l'heure (Ruby envoie des secondes, JS veut des millisecondes)
-            const timeDate = new Date(alert.timestamp * 1000);
-            const timeString = timeDate.toLocaleTimeString();
-
-            // Créer le HTML de la carte
-            const alertCard = document.createElement('div');
-            alertCard.className = `alert-card alert-type-${alert.type}`;
-            
-            alertCard.innerHTML = `
-                <div class="alert-icon-wrapper">
-                    <i class="fas ${iconClass}"></i>
-                </div>
-                <div class="alert-content-wrapper">
-                    <div class="alert-title">${alert.category} Alert</div>
-                    <div class="alert-message">${alert.message}</div>
-                </div>
-                <div class="alert-time">${timeString}</div>
-            `;
-            
-            container.appendChild(alertCard);
-        });
-
-    } catch (error) {
-        console.error("Erreur lors de la récupération des alertes:", error);
-    }
 }
 
-// Lancer la mise à jour des alertes toutes les 2 secondes
-setInterval(updateAlerts, 2000);
+document.getElementById('export-json')?.addEventListener('click', () => { window.location.href = '/api/system'; });
 
-// Lancer une fois au démarrage
+// --- Start: Lancement après chargement complet du DOM ---
 document.addEventListener('DOMContentLoaded', () => {
-    updateAlerts();
+    initPrefs();
+    initNav();
+    
+    // Charger la page Settings au démarrage pour initialiser les écouteurs de sauvegarde/reset
+    updateSettingsPage(); 
+
+    // Démarre sur le dashboard
+    switchPage('dashboard');
+    const rate = parseInt(localStorage.getItem('refreshRate') || '5000');
+    
+    // Démarrer la boucle de rafraîchissement
+    intervalID = setInterval(mainLoop, rate);
+    
+    // Premier fetch immédiat
+    fetchData();
 });
-
-async function autoUpdateNetworkTable() {
-    try {
-        const response = await fetch('/api/network/latest');
-        const data = await response.json();
-
-        // Si la liste est vide, on ne fait rien
-        if (!data.devices || data.devices.length === 0) return;
-
-        const container = document.getElementById('network-devices-container');
-        
-        // --- CHANGEMENT ICI : Utilisation de la classe "styled-table" du CSS ---
-        let html = `
-        <table class="styled-table">
-            <thead>
-                <tr>
-                    <th>Status</th>
-                    <th>IP Address</th>
-                    <th>Hostname</th>
-                    <th>MAC</th>
-                    <th>Vendor</th>
-                </tr>
-            </thead>
-            <tbody>
-        `;
-
-        data.devices.forEach(device => {
-            // Style pour "(This Mac)" en orange comme le thème
-            const isLocal = device.is_local ? ' <span style="color: #ff6b35; font-size: 0.9em; font-weight: bold;">(This Mac)</span>' : '';
-            
-            // Utilisation du badge CSS "status-badge up" (Vert avec le point lumineux)
-            // Note : Le CSS gère le point vert automatiquement via ::before
-            const statusHtml = device.status === 'up' 
-                ? '<span class="status-badge up">Online</span>' 
-                : '<span class="status-badge" style="color:#f44336; background:rgba(244,67,54,0.15)">Offline</span>';
-            
-            html += `
-                <tr>
-                    <td>${statusHtml}</td>
-                    <td>${device.ip}</td>
-                    <td><strong>${device.hostname}</strong>${isLocal}</td>
-                    <td style="font-family: monospace; opacity: 0.8;">${device.mac}</td>
-                    <td style="color: #9fa0a4;">${device.vendor}</td>
-                </tr>
-            `;
-        });
-
-        html += '</tbody></table>';
-        
-        container.innerHTML = html;
-        
-        // Mise à jour du timestamp
-        const statusSpan = document.getElementById('scan-status');
-        if(statusSpan) {
-            const date = new Date(data.timestamp * 1000);
-            statusSpan.textContent = "Last auto-scan: " + date.toLocaleTimeString();
-        }
-
-    } catch (error) {
-        console.error("Erreur auto-update network:", error);
-    }
-}
-
-// Lancer la vérification toutes les 10 secondes
-// (Le serveur scanne toutes les 60s, inutile de rafraîchir chaque seconde)
-setInterval(autoUpdateNetworkTable, 10000);
-
-// Lancer une fois au chargement de la page
-document.addEventListener('DOMContentLoaded', autoUpdateNetworkTable);
