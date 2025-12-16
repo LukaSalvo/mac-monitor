@@ -1,5 +1,7 @@
+// app.js
+
 /**
- * Fichier : app.js (Version corrigée avec DOMContentLoaded)
+ * Fichier : app.js (Version corrigée avec DOMContentLoaded et Logs)
  * Conserve les graphiques d'origine + les nouveaux outils.
  */
 
@@ -62,7 +64,7 @@ function initNav() {
   document.getElementById('sort-cpu-btn')?.addEventListener('click', () => setProcessSort('cpu'));
   document.getElementById('sort-mem-btn')?.addEventListener('click', () => setProcessSort('mem'));
   document.getElementById('refresh')?.addEventListener('click', () => fetchData(true));
-  document.getElementById('interval')?.addEventListener('change', () => fetchData()); // Ajout de l'écouteur change
+  document.getElementById('interval')?.addEventListener('change', () => fetchData()); 
 }
 
 function switchPage(page) {
@@ -88,6 +90,8 @@ function switchPage(page) {
     fetchProcesses();
   } else if (page === 'alerts') {
     fetchAlerts();
+  } else if (page === 'logs') { // NOUVEAU
+    fetchLogs();
   } else {
     // Pages dashboard, cpu, memory, disk, network, uptime
     if (page === 'disk' || page === 'network') fetchDisks();
@@ -398,7 +402,7 @@ function updateUptime(filtered, latest) {
   }
 }
 
-// --- NOUVELLES FONCTIONS (Scanner, Processus, Alertes) ---
+// --- NOUVELLES FONCTIONS (Scanner, Processus, Alertes, Logs) ---
 
 async function scanNetwork() {
   const btn = document.getElementById('scan-network-btn');
@@ -474,22 +478,6 @@ async function fetchProcesses() {
   } catch (err) { console.error(err); }
 }
 
-async function killProcess(pid) {
-    if(!confirm(`Terminate process ${pid}?`)) return;
-    try {
-        const res = await fetch(`/api/processes/${pid}/kill`, { method: 'POST' });
-        const data = await res.json();
-        if(data.success) {
-            alert(`Process ${pid} terminated.`);
-        } else {
-            alert(`Failed to terminate process ${pid}.`);
-        }
-    } catch(e) {
-        alert(`An error occurred while terminating process ${pid}.`);
-    }
-    fetchProcesses();
-}
-
 async function fetchAlerts() {
   try {
     const res = await fetch('/api/alerts');
@@ -520,6 +508,29 @@ async function fetchAlerts() {
         container.innerHTML = `<div class="empty-state"><i class="fas fa-check-circle" style="color:#4ec9b0;"></i><p>System healthy.</p></div>`;
     }
   } catch (err) { console.error(err); }
+}
+
+async function fetchLogs() { // NOUVELLE FONCTION
+  try {
+    const res = await fetch('/api/logs');
+    const data = await res.json();
+    const container = document.getElementById('logs-table-container');
+
+    if (data.logs && data.logs.length > 0) {
+      let html = '<table class="styled-table"><thead><tr><th style="width:15%">Level</th><th>Message</th></tr></thead><tbody>';
+      data.logs.forEach(log => {
+        const levelClass = log.level === 'ERROR' ? 'high' : 'low';
+        html += `<tr>
+            <td><span class="metric-badge ${levelClass}">${log.level}</span></td>
+            <td style="font-family:monospace; font-size:12px; white-space: pre-wrap; word-break: break-all;">${log.message}</td>
+        </tr>`;
+      });
+      html += '</tbody></table>';
+      container.innerHTML = html;
+    } else {
+      container.innerHTML = `<div class="empty-state"><p>${data.error || 'No logs found or file is empty. Check server.rb configuration.'}</p></div>`;
+    }
+  } catch (err) { console.error("Log fetch error:", err); }
 }
 
 // --- Chart.js & Settings (Original) ---
@@ -610,6 +621,7 @@ function mainLoop() {
     if(['dashboard','cpu','memory','disk','network','uptime'].includes(currentPage)) fetchData();
     if(currentPage === 'processes') fetchProcesses();
     if(currentPage === 'alerts') fetchAlerts();
+    if(currentPage === 'logs') fetchLogs(); // NOUVEAU
 }
 
 document.getElementById('export-json')?.addEventListener('click', () => { window.location.href = '/api/system'; });

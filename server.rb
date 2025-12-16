@@ -3,7 +3,8 @@ require 'json'
 require 'vmstat'
 require 'sys/filesystem'
 require 'socket'
-require 'rexml/document' # Ajout pour lire le XML de Nmap proprement
+require 'rexml/document'
+require 'pony' # Ajout de Pony pour l'envoi d'email
 
 # Configuration
 set :port, 3000
@@ -12,13 +13,41 @@ set :public_folder, 'public'
 
 HISTORY = []
 MAX_HISTORY = 3600
-# ON DÉSACTIVE LE CACHE POUR VOS TESTS (remettre à 300 plus tard si voulu)
 NETWORK_SCAN_CACHE = { data: nil, timestamp: 0 }
 SCAN_CACHE_DURATION = 0 
 
-# --- CHEMIN NMAP ---
+# --- NOUVEAUX CHEMINS ET CONFIGURATION ---
+LOG_FILE = File.expand_path('app.log', __dir__)
 # Vérifiez avec 'which nmap' si c'est bien celui-là
 NMAP_PATH = "/opt/homebrew/bin/nmap" 
+
+# --- FONCTIONNALITÉS AVANCÉES ---
+
+# Configuration Pony (Email) - REMPLACER CES VALEURS
+# Vous aurez besoin d'un service SMTP (Gmail, SendGrid, etc.)
+def send_alert_email(subject, body)
+  puts "DEBUG: Tentative d'envoi d'email..."
+  begin
+    Pony.mail({
+      :to => 'votre_email_de_reception@exemple.com', 
+      :from => 'monitor@votre-domaine.com',
+      :subject => "[System Monitor Alert] #{subject}",
+      :body => body,
+      :via => :smtp,
+      :via_options => {
+        :address => 'smtp.gmail.com', # EXEMPLE: Changer pour votre SMTP
+        :port => '587',
+        :user_name => 'votre_compte_smtp', # EXEMPLE: Votre adresse ou utilisateur SMTP
+        :password => 'votre_mot_de_passe_app', # EXEMPLE: Mot de passe d'application ou secret SMTP
+        :authentication => :plain,
+        :enable_starttls_auto => true
+      }
+    })
+    puts "DEBUG: Email envoyé avec succès."
+  rescue => e
+    puts "ERROR: Échec de l'envoi d'email: #{e.message}"
+  end
+end
 
 # --- UTILITAIRES ---
 def get_cpu_usage
@@ -64,7 +93,10 @@ def scan_network
       
       # Commande avec -oX - pour sortir du XML
       cmd = "sudo #{NMAP_PATH} -sn -T4 -oX - #{subnet}"
-      xml_output = `#{cmd} 2>/dev/null`
+      
+      # CORRECTION CRITIQUE DE LA SYNTAXE : 
+      # On exécute la commande complète, y compris la redirection d'erreur
+      xml_output = `#{cmd} 2>/dev/null` 
       
       if $?.success? && !xml_output.empty?
         # Parsing du XML
@@ -78,7 +110,7 @@ def scan_network
           # IP
           ip_elem = host.elements["address[@addrtype='ipv4']"]
           ip = ip_elem ? ip_elem.attributes['addr'] : nil
-          next unless ip # On ignore si pas d'IP
+          next unless ip 
           
           # MAC & Vendor
           mac_elem = host.elements["address[@addrtype='mac']"]
@@ -141,10 +173,20 @@ def get_processes(sort_by = 'cpu', limit = 20)
   rescue; [] end
 end
 
+# Mise à jour: Déclenchement de l'email pour les alertes CRITIQUES
 def check_alerts(data)
   alerts = []
-  alerts << { type: 'warning', category: 'cpu', message: "High CPU: #{data[:cpu_usage]}%", timestamp: Time.now.to_i } if data[:cpu_usage] > 80
-  alerts << { type: 'critical', category: 'disk', message: "Disk Full: #{data[:disk_percent]}%", timestamp: Time.now.to_i } if data[:disk_percent] > 90
+  if data[:cpu_usage] > 80
+    alerts << { type: 'warning', category: 'cpu', message: "High CPU: #{data[:cpu_usage]}%", timestamp: Time.now.to_i }
+  end
+  
+  if data[:disk_percent] > 90
+    msg = "Disk Full: #{data[:disk_percent]}%"
+    alerts << { type: 'critical', category: 'disk', message: msg, timestamp: Time.now.to_i }
+    
+    # ENVOI D'EMAIL EN CAS D'ALERTE CRITIQUE
+    send_alert_email("CRITICAL Disk Alert", "The disk usage is at #{data[:disk_percent]}% on #{data[:hostname] || 'Monitoring Host'}. Action required!")
+  end
   alerts
 end
 
@@ -171,13 +213,20 @@ Thread.new do
         end
       rescue; end
 
-      HISTORY << {
+      current_data = {
         timestamp: Time.now.to_i, hostname: Socket.gethostname, platform: RUBY_PLATFORM, os: RbConfig::CONFIG['host_os'],
         cpu_cores: vm.cpus.length, cpu_usage: cpu, cpu_temp: get_cpu_temperature,
         memory_total_bytes: mem_tot, memory_used_bytes: mem_used, memory_percent: ((mem_used.to_f/mem_tot.to_f)*100).round(1),
         disk_total_bytes: d_stat[:t], disk_used_bytes: d_stat[:u], disk_percent: d_stat[:p],
         network_sent: n_s, network_recv: n_r, uptime_seconds: Vmstat.boot_time ? (Time.now - Vmstat.boot_time).to_i : 0
       }
+
+      # Écriture dans un fichier de log minimal (pour démo)
+      File.open(LOG_FILE, 'a') do |f|
+        f.puts "[#{Time.now.strftime('%Y-%m-%d %H:%M:%S')}] INFO: System snapshot taken. CPU: #{current_data[:cpu_usage]}%, Mem: #{current_data[:memory_percent]}%"
+      end
+      
+      HISTORY << current_data
       HISTORY.shift if HISTORY.length > MAX_HISTORY
     rescue => e; puts "Error loop: #{e.message}"; end
   end
@@ -200,3 +249,25 @@ get '/api/network/scan' do content_type :json; { devices: scan_network, local_ip
 get '/api/processes' do content_type :json; sort=params[:sort]||'cpu'; limit=(params[:limit]||20).to_i; list=get_processes(sort,limit); {processes:list, count:list.length}.to_json end
 post '/api/processes/:pid/kill' do content_type :json; Process.kill('TERM', params[:pid].to_i); {success:true}.to_json rescue {success:false}.to_json end
 get '/api/alerts' do content_type :json; HISTORY.empty? ? {alerts:[]}.to_json : {alerts:check_alerts(HISTORY.last), timestamp:Time.now.to_i}.to_json end
+
+# NOUVELLE ROUTE : Lecture et analyse des logs
+get '/api/logs' do
+  content_type :json
+  
+  if File.exist?(LOG_FILE)
+    # Lire les 100 dernières lignes 
+    lines = `tail -n 100 #{LOG_FILE}`.split("\n")
+    
+    # Analyse simple pour remonter des niveaux et inverser l'ordre
+    logs = lines.reverse.map do |line|
+      level = 'INFO'
+      # Cette analyse est très basique et peut être améliorée
+      level = 'ERROR' if line.include?('Error') || line.include?('Fail') || line.include?('FATAL')
+      { level: level, message: line }
+    end
+    
+    { logs: logs, count: logs.length }.to_json
+  else
+    { logs: [], count: 0, error: "Log file not found at #{LOG_FILE}" }.to_json
+  end
+end

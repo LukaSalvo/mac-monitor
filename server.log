@@ -1,0 +1,4 @@
+/opt/homebrew/Cellar/ruby/3.4.7/lib/ruby/3.4.0/rubygems.rb:279:in 'Gem.find_spec_for_exe': can't find gem rack (>= 0.a) with executable rackup (Gem::GemNotFoundException)
+	from /opt/homebrew/Cellar/ruby/3.4.7/lib/ruby/3.4.0/rubygems.rb:253:in 'Gem.find_and_activate_spec_for_exe'
+	from /opt/homebrew/Cellar/ruby/3.4.7/lib/ruby/3.4.0/rubygems.rb:334:in 'Gem.activate_bin_path'
+	from /usr/local/bin/rackup:23:in '<main>'

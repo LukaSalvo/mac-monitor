@@ -1,8 +1,11 @@
+# Gemfile
+
 source 'https://rubygems.org'
 
 gem 'sinatra'
-gem 'json'
-gem 'vmstat'
+gem 'puma'
+gem 'rackup'
 gem 'sys-filesystem'
-gem 'webrick' # Nécessaire pour Ruby 3.0+
-gem 'thin'    # Serveur web plus performant (optionnel mais recommandé)gem 'rexml'
+gem 'vmstat'
+gem 'pony' # Assurez-vous que cette ligne est présente
+gem 'rexml'
