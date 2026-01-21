@@ -40,7 +40,15 @@ def check_updates
   results
 end
 
-require 'etc'
+
+# --- HELPERS OS ---
+def is_mac?
+  RbConfig::CONFIG['host_os'] =~ /darwin/
+end
+
+def is_linux?
+  RbConfig::CONFIG['host_os'] =~ /linux/
+end
 
 # --- UTILITAIRES SYSTÈME ---
 def get_system_info
@@ -52,91 +60,144 @@ def get_system_info
 end
 
 def get_cpu_usage
-  return 0.0 unless File.exist?('/proc/stat')
-  
-  # Lecture 1
-  cpu1 = File.read('/proc/stat').lines.first.split.map(&:to_i)
-  sleep 0.5 # Court délai pour calculer le delta
-  # Lecture 2
-  cpu2 = File.read('/proc/stat').lines.first.split.map(&:to_i)
-  
-  # [user, nice, system, idle, iowait, irq, softirq, steal, guest, guest_nice]
-  # Idle est à l'index 4 (valeur 3 du tableau split car "cpu" est le 0)
-  # Mais split donne: ["cpu", "user", "nice", "sys", "idle", ...]
-  # Donc indices : user=1, nice=2, sys=3, idle=4
-  
-  idle1 = cpu1[4] + cpu1[5] # idle + iowait
-  total1 = cpu1[1..].sum
-  
-  idle2 = cpu2[4] + cpu2[5]
-  total2 = cpu2[1..].sum
-  
-  diff_idle = idle2 - idle1
-  diff_total = total2 - total1
-  
-  return 0.0 if diff_total == 0
-  
-  used_pct = (1.0 - diff_idle.to_f / diff_total.to_f) * 100
-  used_pct.round(1)
+  if is_linux? && File.exist?('/proc/stat')
+    # Lecture 1
+    cpu1 = File.read('/proc/stat').lines.first.split.map(&:to_i)
+    sleep 0.5 
+    # Lecture 2
+    cpu2 = File.read('/proc/stat').lines.first.split.map(&:to_i)
+    
+    idle1 = cpu1[4] + cpu1[5] # idle + iowait
+    total1 = cpu1[1..].sum
+    
+    idle2 = cpu2[4] + cpu2[5]
+    total2 = cpu2[1..].sum
+    
+    diff_idle = idle2 - idle1
+    diff_total = total2 - total1
+    
+    return 0.0 if diff_total == 0
+    ((1.0 - diff_idle.to_f / diff_total.to_f) * 100).round(1)
+  elsif is_mac?
+    # macOS: top -l 1 est un peu lent (1s), on utilise une technique plus rapide si possible
+    # Fallback robuste : parser top (instantané via sysctl est complexe sans C extension)
+    begin
+        # top -l 1 -n 0 : 1 sample, 0 processes displayed (faster)
+        output = `top -l 1 -n 0 | grep "CPU usage"`
+        # CPU usage: 10.5% user, 20.0% sys, 69.5% idle
+        if output =~ /([0-9.]+)% user,\s+([0-9.]+)% sys/
+          user = $1.to_f
+          sys = $2.to_f
+          (user + sys).round(1)
+        else
+          0.0
+        end
+    rescue
+        0.0
+    end
+  else
+    0.0
+  end
 end
 
 def get_memory_usage
-  return { total: 0, used: 0, percent: 0 } unless File.exist?('/proc/meminfo')
-  
-  meminfo = {}
-  File.read('/proc/meminfo').each_line do |line|
-    parts = line.split(':')
-    next unless parts.length == 2
-    key = parts[0].strip
-    value = parts[1].strip.to_i * 1024 # Convertir kB en Bytes
-    meminfo[key] = value
+  if is_linux? && File.exist?('/proc/meminfo')
+    meminfo = {}
+    File.read('/proc/meminfo').each_line do |line|
+      parts = line.split(':')
+      next unless parts.length == 2
+      key = parts[0].strip
+      value = parts[1].strip.to_i * 1024
+      meminfo[key] = value
+    end
+    
+    total = meminfo['MemTotal'] || 0
+    available = meminfo['MemAvailable'] 
+    
+    unless available
+      free = meminfo['MemFree'] || 0
+      buffers = meminfo['Buffers'] || 0
+      cached = meminfo['Cached'] || 0
+      available = free + buffers + cached
+    end
+    
+    used = total - available
+    percent = total > 0 ? ((used.to_f / total.to_f) * 100).round(1) : 0.0
+    
+    { total: total, used: used, percent: percent }
+  elsif is_mac?
+    # Total RAM via sysctl
+    total = `sysctl -n hw.memsize`.to_i
+    
+    # Used RAM via vm_stat (Pages active + wired + compressed)
+    # vm_stat output: "Pages free: 12345."
+    vm_stat = `vm_stat`
+    page_size = `pagesize`.to_i # souvent 4096 ou 16384 (M1)
+    
+    def get_vm_val(text, key)
+      text.match(/#{key}:\s+(\d+)\./)&.captures&.first&.to_i || 0
+    end
+    
+    pages_free = get_vm_val(vm_stat, "Pages free")
+    pages_active = get_vm_val(vm_stat, "Pages active")
+    pages_inactive = get_vm_val(vm_stat, "Pages inactive")
+    pages_speculative = get_vm_val(vm_stat, "Pages speculative")
+    pages_wired = get_vm_val(vm_stat, "Pages wired down")
+    pages_compressed = get_vm_val(vm_stat, "Pages occupied by compressor")
+    
+    # "App Memory" = (Anonymous + Purgeable) but simpler approximation:
+    # Used = (Active + Wired + Compressed) * PageSize
+    # (Inactive is often considered "available" / file cache on macOS)
+    
+    used_pages = pages_active + pages_wired + pages_compressed
+    used = used_pages * page_size
+    
+    percent = total > 0 ? ((used.to_f / total.to_f) * 100).round(1) : 0.0
+    
+    { total: total, used: used, percent: percent }
+  else
+    { total: 0, used: 0, percent: 0 }
   end
-  
-  total = meminfo['MemTotal'] || 0
-  available = meminfo['MemAvailable'] 
-  
-  # Si MemAvailable n'est pas dispo (vieux noyaux), approximation : free + buffers + cached
-  unless available
-    free = meminfo['MemFree'] || 0
-    buffers = meminfo['Buffers'] || 0
-    cached = meminfo['Cached'] || 0
-    available = free + buffers + cached
-  end
-  
-  used = total - available
-  percent = total > 0 ? ((used.to_f / total.to_f) * 100).round(1) : 0.0
-  
-  { total: total, used: used, percent: percent }
 end
 
 def get_cpu_temperature
   begin
-    # Linux
-    [
-      '/sys/class/thermal/thermal_zone0/temp',
-      '/sys/devices/virtual/thermal/thermal_zone0/temp'
-    ].each do |path|
-      if File.exist?(path)
-        raw = File.read(path).to_i
-        # Parfois c'est en millidegrés, parfois en degrés. Si > 1000, c'est milli.
-        return (raw > 150 ? raw / 1000.0 : raw).round(1)
+    if is_linux?
+      [ '/sys/class/thermal/thermal_zone0/temp', '/sys/devices/virtual/thermal/thermal_zone0/temp' ].each do |path|
+        if File.exist?(path)
+          raw = File.read(path).to_i
+          return (raw > 150 ? raw / 1000.0 : raw).round(1)
+        end
       end
+    elsif is_mac?
+      # Difficile sans gem externe (istats ou similar). On renvoie nil pour le moment pour éviter erreur.
+      return nil
     end
-    
-    # macOS (Apple Silicon & Intel) - Best effort via sysctl (requiert privileges souvent, mais essayons user space)
-    if RbConfig::CONFIG['host_os'] =~ /darwin/
-      # Pas de méthode standard fiable sans root/gem externe, mais on peut tenter
-      # Pour Intel: machdep.xcpm.cpu_thermal_level (pas une vraie temp)
-      return nil 
-    end
-
   rescue; end
   nil
 end
 
+def get_uptime_seconds
+    if is_linux? && File.exist?('/proc/uptime')
+        File.read('/proc/uptime').split[0].to_i rescue 0
+    elsif is_mac?
+        # sysctl -n kern.boottime -> { sec = 1705678900, usec = ... }
+        # output format: "{ sec = 1737380903, usec = 447036 } Thu Jan 20 14:48:23 2026"
+        out = `sysctl -n kern.boottime`
+        if out =~ /sec = (\d+)/
+            boot_time = $1.to_i
+            Time.now.to_i - boot_time
+        else
+            0
+        end
+    else
+        0
+    end
+end
+
 def get_local_ip
   ip = Socket.ip_address_list.detect { |addr| addr.ipv4? && !addr.ipv4_loopback? }&.ip_address
-  ip || `hostname -I | awk '{print $1}'`.strip
+  ip || (is_mac? ? `ipconfig getifaddr en0`.strip : `hostname -I | awk '{print $1}'`.strip)
 end
 
 # --- ROUTES ---
@@ -151,22 +212,31 @@ get '/api/processes' do
   
   processes = []
   begin
-    # Format ps: pid, user, cpu, mem, command
-    # linux 'ps' args: -e (all), -o (format)
-    # sorting via ps is easiest: --sort=-%cpu or --sort=-%mem
-    sort_arg = sort == 'mem' ? '--sort=-%mem' : '--sort=-%cpu'
-    
-    output = `ps -eo pid,user,%cpu,%mem,comm #{sort_arg} | head -n #{limit + 1}`
-    output.lines.drop(1).each do |line|
-      parts = line.split
-      next if parts.length < 5
-      processes << {
-        pid: parts[0],
-        user: parts[1],
-        cpu: parts[2].to_f,
-        mem: parts[3].to_f,
-        command: parts[4..].join(' ')
-      }
+    if is_linux?
+        # linux 'ps' args: -e (all), -o (format)
+        sort_arg = sort == 'mem' ? '--sort=-%mem' : '--sort=-%cpu'
+        output = `ps -eo pid,user,%cpu,%mem,comm #{sort_arg} | head -n #{limit + 1}`
+        output.lines.drop(1).each do |line|
+            parts = line.split
+            next if parts.length < 5
+            processes << { pid: parts[0], user: parts[1], cpu: parts[2].to_f, mem: parts[3].to_f, command: parts[4..].join(' ') }
+        end
+    elsif is_mac?
+        # macOS ps ne supporte pas --sort. On fetch tout et on trie en Ruby.
+        output = `ps -Ao pid,user,%cpu,%mem,comm`
+        output.lines.drop(1).each do |line|
+            parts = line.split
+            next if parts.length < 5
+            processes << { pid: parts[0], user: parts[1], cpu: parts[2].to_f, mem: parts[3].to_f, command: parts[4..].join(' ') }
+        end
+        
+        # Tri Ruby
+        if sort == 'mem'
+            processes.sort_by! { |p| -p[:mem] }
+        else
+            processes.sort_by! { |p| -p[:cpu] }
+        end
+        processes = processes.first(limit)
     end
   rescue => e
     puts "Process Error: #{e.message}"
@@ -177,11 +247,12 @@ end
 def get_disks_via_sys_filesystem
   d = []
   Sys::Filesystem.mounts.each { |m| 
-    next if m.mount_type =~ /tmpfs|proc|devfs|sysfs|squashfs/
+    # Ignore pseudo-fs
+    next if m.mount_type =~ /tmpfs|proc|devfs|sysfs|squashfs|autofs|devpts/
     begin
       s = Sys::Filesystem.stat(m.mount_point)
       t = s.blocks * s.block_size
-      next if t < 10**9 # Ignorer petits volumes < 1GB
+      next if t < 10**9 
       d << { device: m.name, mountpoint: m.mount_point, total_bytes: t, used_bytes: t-(s.blocks_free*s.block_size) }
     rescue; end
   }
@@ -191,23 +262,33 @@ end
 def get_disks_via_df
   d = []
   begin
-    # df -B1 output: Filesystem 1B-blocks Used Available Use% Mounted on
-    `df -B1 -x tmpfs -x devtmpfs -x squashfs`.lines.drop(1).each do |line|
-      parts = line.split
-      next if parts.length < 6
-      
-      total = parts[1].to_i
-      used = parts[2].to_i
-      mount = parts[5]
-      
-      next if total < 10**9 # Ignore < 1GB
-      
-      d << { 
-        device: parts[0], 
-        mountpoint: mount, 
-        total_bytes: total, 
-        used_bytes: used 
-      }
+    if is_linux?
+        # df -B1
+        `df -B1 -x tmpfs -x devtmpfs -x squashfs`.lines.drop(1).each do |line|
+          parts = line.split
+          next if parts.length < 6
+          total = parts[1].to_i
+          used = parts[2].to_i
+          mount = parts[5]
+          next if total < 10**9 
+          d << { device: parts[0], mountpoint: mount, total_bytes: total, used_bytes: used }
+        end
+    elsif is_mac?
+        # df -k (kilobytes) sur mac. output: Filesystem 1024-blocks Used Available Capacity iused ifree %iused Mounted on
+        `df -k`.lines.drop(1).each do |line|
+           parts = line.split
+           # Mac df output can be tricky if mount path has spaces, but usually last col.
+           # Typically: /dev/disk3s1s1 484767224 23377720 376679584 6% 304560 3766795840 0% /System/Volumes/Data
+           # parts: [0]=fs, [1]=blocks(1k), [2]=used(1k), [3]=avail(1k), [4]=cap, ... last=mount
+           
+           next if parts.length < 6
+           total = parts[1].to_i * 1024
+           used = parts[2].to_i * 1024
+           mount = parts.last # Simplification (échoue si espace dans nom, mais acceptable pour MVP)
+           
+           next if total < 10**9
+           d << { device: parts[0], mountpoint: mount, total_bytes: total, used_bytes: used }
+        end
     end
   rescue; end
   d
@@ -215,7 +296,6 @@ end
 
 get '/api/disks' do
   content_type :json
-  # Try Sys::Filesystem first, fallback to df
   disks = get_disks_via_sys_filesystem
   if disks.empty?
     disks = get_disks_via_df
@@ -241,7 +321,6 @@ def scan_network
   devices = []
   local_ip = get_local_ip
   
-  # Method 1: Nmap (Preferred)
   if File.executable?(NMAP_PATH)
     begin
       subnet = local_ip.split('.')[0..2].join('.') + '.0/24'
@@ -251,10 +330,8 @@ def scan_network
         doc.elements.each('nmaprun/host') do |host|
           ip = host.elements["address[@addrtype='ipv4']"]&.attributes['addr']
           next unless ip
-          
           hostname_el = host.elements["hostnames/hostname"]
           hostname = hostname_el ? hostname_el.attributes['name'] : "Inconnu"
-          
           devices << { ip: ip, hostname: hostname, status: 'up', is_local: (ip == local_ip) }
         end
         return devices unless devices.empty?
@@ -262,28 +339,35 @@ def scan_network
     rescue => e; puts "Nmap Error: #{e.message}"; end
   end
 
-  # Method 2: Fallback to ARP / ip neigh
   begin
-    # ip neigh output: 192.168.1.1 dev eth0 lladdr 00:11:22:33:44:55 STALE
-    `ip neigh`.each_line do |line|
-      parts = line.split
-      ip = parts[0]
-      next unless ip =~ /^\d+\.\d+\.\d+\.\d+$/ # IPv4 only
-      
-      # Try to resolve hostname via simple host command or just use IP
-      hostname = "Inconnu" # resolving takes time, skip for speed in fallback
-      
-      state = parts.last
-      next if state == 'FAILED'
-      
-      devices << { ip: ip, hostname: hostname, status: 'up', is_local: (ip == local_ip), source: 'arp' }
+    if is_linux?
+        # ip neigh
+        `ip neigh`.each_line do |line|
+            parts = line.split
+            ip = parts[0]
+            next unless ip =~ /^\d+\.\d+\.\d+\.\d+$/ 
+            hostname = "Inconnu"
+            state = parts.last
+            next if state == 'FAILED'
+            devices << { ip: ip, hostname: hostname, status: 'up', is_local: (ip == local_ip), source: 'arp' }
+        end
+    elsif is_mac?
+        # arp -a
+        # output: ? (192.168.1.1) at 0:11:22:33:44:55 on en0 ifscope [ethernet]
+        `arp -a`.each_line do |line|
+            if line =~ /\((\d+\.\d+\.\d+\.\d+)\) at ([a-fA-F0-9:]+)/
+                ip = $1
+                mac = $2
+                hostname = line.split(' ').first
+                hostname = "Inconnu" if hostname == "?"
+                devices << { ip: ip, hostname: hostname, status: 'up', is_local: (ip == local_ip), source: 'arp' }
+            end
+        end
     end
     
-    # Add self if not in ARP
     unless devices.any? { |d| d[:is_local] }
       devices << { ip: local_ip, hostname: Socket.gethostname, status: 'up', is_local: true, source: 'local' }
     end
-    
   rescue => e; puts "ARP Error: #{e.message}"; end
   
   devices
@@ -294,52 +378,67 @@ def get_network_stats
   rx = 0
   tx = 0
   begin
-    File.read('/proc/net/dev').lines.drop(2).each do |line|
-      parts = line.split
-      # interface is parts[0] sans ':'
-      iface = parts[0].tr(':', '')
-      next if iface == 'lo' # ignore loopback
-      
-      # col 1 = RX bytes, col 9 = TX bytes (if parts[0] includes colon, otherwise offset might vary but split usually handles it)
-      # /proc/net/dev format:
-      # face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed
-      # wlo1: 1408...
-      # If split gives ["wlo1:", "140...", ...] -> bytes is index 1
-      
-      rx += parts[1].to_i
-      tx += parts[9].to_i
+    if is_linux? && File.exist?('/proc/net/dev')
+        File.read('/proc/net/dev').lines.drop(2).each do |line|
+          parts = line.split
+          iface = parts[0].tr(':', '')
+          next if iface == 'lo' 
+          rx += parts[1].to_i
+          tx += parts[9].to_i
+        end
+    elsif is_mac?
+        # netstat -ib (bytes)
+        # Name  Mtu   Network       Address            Ipkts Ierrs    Ibytes    Opkts Oerrs    Obytes  Coll
+        # en0   1500  <Link#4>      ...                123   0        456       789   0        101     0
+        # Attention: netstat -ib répète les lignes pour ipv4/ipv6. Faut éviter de double compter.
+        # Astuce: filtrer sur "Link" pour avoir le total physique une seule fois par interface.
+        `netstat -ib`.each_line do |line|
+            parts = line.split
+            next unless parts.length > 9
+            iface = parts[0]
+            # Colonnes variables si Address est présent ou non (Address est col 3 ou 4)
+            # Mais netstat -ib aligne : Name Mtu Network Address Ipkts Ierrs Ibytes ...
+            # Si <Link#...> est présent, c'est le compteur physique.
+            # ex: en0 1500 <Link#4> 00:e0:... 12345 0 987654 ...
+            next if iface =~ /^lo/ # skip loopback
+            
+            # Pour faire simple on cherche la ligne avec <Link...>
+            if line =~ /<Link#/
+                # Ibytes = col 6 (0-indexed), Obytes = col 9
+                # parts: 0=Name, 1=Mtu, 2=Network, 3=Address, 4=Ipkts, 5=Ierrs, 6=Ibytes, 7=Opkts, 8=Oerrs, 9=Obytes
+                rx += parts[6].to_i
+                tx += parts[9].to_i
+            end
+        end
     end
   rescue; end
   { rx: rx, tx: tx }
 end
 
 def get_root_disk_usage
-  # Fallback to df for root path /
   result = { total: 0, used: 0, percent: 0 }
   begin
-    # df -B1 /
-    output = `df -B1 /`.lines.last.split
-    # Filesystem 1B-blocks Used Available Use% Mounted on
-    total = output[1].to_i
-    used = output[2].to_i
-    result = { 
-      total: total, 
-      used: used, 
-      percent: (total > 0 ? (used.to_f / total * 100).round(1) : 0) 
-    }
+    if is_linux?
+        output = `df -B1 /`.lines.last.split
+        total = output[1].to_i
+        used = output[2].to_i
+        result = { total: total, used: used, percent: (total > 0 ? (used.to_f / total * 100).round(1) : 0) }
+    elsif is_mac?
+        output = `df -k /`.lines.last.split
+        total = output[1].to_i * 1024
+        used = output[2].to_i * 1024
+        result = { total: total, used: used, percent: (total > 0 ? (used.to_f / total * 100).round(1) : 0) }
+    end
   rescue; end
   result
 end
 
 # --- THREAD DE COLLECTE ---
 Thread.new do
-  system_info = get_system_info # Collecter une fois au démarrage
+  system_info = get_system_info 
   
   loop do
     begin
-      # On dort au début pour permettre au `get_cpu_usage` de faire sa propre pause si besoin
-      # ou sleep après. Ici get_cpu_usage a un sleep(0.5).
-      
       mem = get_memory_usage
       cpu = get_cpu_usage
       net = get_network_stats
@@ -348,14 +447,14 @@ Thread.new do
       current_data = {
         timestamp: Time.now.to_i, 
         hostname: Socket.gethostname,
-        platform: system_info[:platform], # "x86_64" ou "arm64"
-        os: system_info[:os],             # "linux-gnu" ou "darwin..."
+        platform: system_info[:platform], 
+        os: system_info[:os],             
         cpu_cores: system_info[:cpu_cores],
         cpu_usage: cpu, 
         cpu_temp: get_cpu_temperature,
         memory_total_bytes: mem[:total], memory_used_bytes: mem[:used],
         memory_percent: mem[:percent],
-        uptime_seconds: (File.read('/proc/uptime').split[0].to_i rescue 0),
+        uptime_seconds: get_uptime_seconds,
         
         # New Data Feeds
         network_recv: net[:rx],
@@ -368,12 +467,11 @@ Thread.new do
       HISTORY << current_data
       HISTORY.shift if HISTORY.length > MAX_HISTORY
       
-      # Log périodique (pas à chaque seconde pour éviter de spammer)
       if Time.now.to_i % 60 == 0
         File.open(LOG_FILE, 'a') { |f| f.puts "[#{Time.now}] INFO: CPU #{current_data[:cpu_usage]}% | Mem #{current_data[:memory_percent]}% | Net RX: #{current_data[:network_recv]}" }
       end
       
-      sleep 1.5 # +0.5s dans get_cpu_usage = ~2s total cycle
+      sleep 1.5 
     rescue => e; puts "Loop Error: #{e.message}"; sleep 1; end
   end
 end
