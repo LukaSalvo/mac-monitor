@@ -8,8 +8,8 @@
 let charts = {};
 let currentPage = 'dashboard';
 let intervalID;
-let selectedDisk = null; 
-let unitPref = 'binary'; 
+let selectedDisk = null;
+let unitPref = 'binary';
 let currentSort = 'cpu'; // Ajout pour le tri des processus
 
 // --- Utilitaires ---
@@ -21,34 +21,35 @@ function formatBytes(bytes) {
   const decimalSizes = ['B', 'KB', 'MB', 'GB', 'TB'];
   const sizes = unitPref === 'decimal' ? decimalSizes : binarySizes;
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  const index = Math.min(i, sizes.length - 1); 
+  const index = Math.min(i, sizes.length - 1);
   return (bytes / Math.pow(k, index)).toFixed(2) + ' ' + sizes[index];
 }
 
 function formatDuration(seconds) {
-    if (seconds < 60) return `${seconds.toFixed(0)}s`;
-    let days = Math.floor(seconds / (3600 * 24));
-    let hours = Math.floor((seconds % (3600 * 24)) / 3600);
-    let minutes = Math.floor((seconds % 3600) / 60);
-    let parts = [];
-    if (days > 0) parts.push(days + 'd');
-    if (hours > 0) parts.push(hours + 'h');
-    if (minutes > 0) parts.push(minutes + 'm');
-    if (parts.length === 0) return '0s';
-    return parts.join(' ');
+  if (seconds < 60) return `${seconds.toFixed(0)}s`;
+  let days = Math.floor(seconds / (3600 * 24));
+  let hours = Math.floor((seconds % (3600 * 24)) / 3600);
+  let minutes = Math.floor((seconds % 3600) / 60);
+  let parts = [];
+  if (days > 0) parts.push(days + 'd');
+  if (hours > 0) parts.push(hours + 'h');
+  if (minutes > 0) parts.push(minutes + 'm');
+  if (parts.length === 0) return '0s';
+  return parts.join(' ');
 }
 
 // --- Initialisation ---
 
 function initPrefs() {
-    try {
-        unitPref = localStorage.getItem('unitPref') || 'binary';
-        const storedDisk = localStorage.getItem('selectedDisk');
-        if (storedDisk && storedDisk !== 'null') {
-            selectedDisk = JSON.parse(storedDisk);
-        }
-    } catch (e) { console.error("Erreur préférences:", e); }
+  try {
+    unitPref = localStorage.getItem('unitPref') || 'binary';
+    const storedDisk = localStorage.getItem('selectedDisk');
+    if (storedDisk && storedDisk !== 'null') {
+      selectedDisk = JSON.parse(storedDisk);
+    }
+  } catch (e) { console.error("Erreur préférences:", e); }
 }
+
 
 function initNav() {
   document.querySelectorAll('.menu-item').forEach(item => {
@@ -64,23 +65,37 @@ function initNav() {
   document.getElementById('sort-cpu-btn')?.addEventListener('click', () => setProcessSort('cpu'));
   document.getElementById('sort-mem-btn')?.addEventListener('click', () => setProcessSort('mem'));
   document.getElementById('refresh')?.addEventListener('click', () => fetchData(true));
-  document.getElementById('interval')?.addEventListener('change', () => fetchData()); 
+  document.getElementById('interval')?.addEventListener('change', () => fetchData());
 }
 
 function switchPage(page) {
   currentPage = page;
-  
+
   // UI Updates
   document.querySelectorAll('.menu-item').forEach(i => i.classList.remove('active'));
   const active = document.querySelector(`[data-page="${page}"]`);
   if (active) active.classList.add('active');
-  
-  document.getElementById('page-title').textContent = page.charAt(0).toUpperCase() + page.slice(1) + ' Monitor';
-  
+
+  // Traduction titres pages
+  const titles = {
+    'dashboard': 'Tableau de bord',
+    'cpu': 'Moniteur CPU',
+    'memory': 'Moniteur Mémoire',
+    'disk': 'Moniteur Disque',
+    'uptime': 'Disponibilité',
+    'network': 'Moniteur Réseau',
+    'scanner': 'Scanner Réseau',
+    'processes': 'Gestionnaire Tâches',
+    'alerts': 'Alertes Système',
+    'logs': 'Journaux App',
+    'settings': 'Paramètres'
+  };
+  document.getElementById('page-title').textContent = titles[page] || 'Moniteur Système';
+
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   const activePage = document.getElementById(`${page}-page`);
   if (activePage) activePage.classList.add('active');
-  
+
   // Logic Dispatch
   if (page === 'settings') {
     updateSettingsPage();
@@ -90,12 +105,12 @@ function switchPage(page) {
     fetchProcesses();
   } else if (page === 'alerts') {
     fetchAlerts();
-  } else if (page === 'logs') { // NOUVEAU
+  } else if (page === 'logs') {
     fetchLogs();
   } else {
     // Pages dashboard, cpu, memory, disk, network, uptime
     if (page === 'disk' || page === 'network') fetchDisks();
-    fetchData(); 
+    fetchData();
   }
 }
 
@@ -106,59 +121,59 @@ async function fetchData(force = false) {
     const res = await fetch('/api/system');
     if (!res.ok) throw new Error('Échec fetch system');
     const data = await res.json();
-    
+
     // Mettre à jour la température
-    document.getElementById('cpu-temp').textContent = data.length > 0 && data[data.length - 1].cpu_temp ? 
-        `${data[data.length - 1].cpu_temp}°C` : '--';
+    document.getElementById('cpu-temp').textContent = data.length > 0 && data[data.length - 1].cpu_temp ?
+      `${data[data.length - 1].cpu_temp}°C` : '--';
 
     const minutes = parseInt(document.getElementById('interval').value);
     const cutoff = Date.now() / 1000 - minutes * 60;
     const filtered = data.filter(d => d.timestamp >= cutoff);
-    
+
     if (filtered.length === 0) {
-      console.warn("No data points available after filtering.");
+      console.warn("Aucune donnée disponible après filtrage.");
       return;
     }
     const latest = filtered[filtered.length - 1];
-    
+
     // Switch vers vos fonctions originales
-    switch(currentPage) {
+    switch (currentPage) {
       case 'dashboard': updateDashboard(filtered, latest); break;
-      case 'cpu':       updateCPU(filtered, latest); break;
-      case 'memory':    updateMemory(filtered, latest); break;
-      case 'disk':      updateDisk(filtered, latest); break;
-      case 'network':   updateNetwork(filtered, latest); break;
-      case 'uptime':    updateUptime(filtered, latest); break;
+      case 'cpu': updateCPU(filtered, latest); break;
+      case 'memory': updateMemory(filtered, latest); break;
+      case 'disk': updateDisk(filtered, latest); break;
+      case 'network': updateNetwork(filtered, latest); break;
+      case 'uptime': updateUptime(filtered, latest); break;
     }
   } catch (err) { console.error('Erreur data:', err); }
 }
 
 async function fetchDisks() {
-    try {
-        const res = await fetch('/api/disks');
-        if (res.ok) return await res.json();
-    } catch (err) { return []; }
+  try {
+    const res = await fetch('/api/disks');
+    if (res.ok) return await res.json();
+  } catch (err) { return []; }
 }
 
 // --- Vos fonctions de mise à jour ORIGINALES (pour garder les graphs) ---
 
 function updateDashboard(filtered, latest) {
-  const k = unitPref === 'decimal' ? 1e9 : 1024**3;
+  const k = unitPref === 'decimal' ? 1e9 : 1024 ** 3;
   const unit = unitPref === 'decimal' ? 'GB' : 'GiB';
 
   document.getElementById('sys-hostname').textContent = latest.hostname || 'Inconnu';
   document.getElementById('sys-platform').textContent = latest.platform ? `${latest.platform} ${latest.os || ''}` : 'Inconnu';
   document.getElementById('sys-cores').textContent = latest.cpu_cores ? `${latest.cpu_cores} cœurs` : 'Inconnu';
-  
+
   document.getElementById('cpu').textContent = (latest.cpu_usage || 0).toFixed(1) + '%';
   document.getElementById('memory').textContent = `${formatBytes(latest.memory_used_bytes)} / ${formatBytes(latest.memory_total_bytes)}`;
-  
+
   const diskData = selectedDisk || { used_bytes: latest.disk_used_bytes, total_bytes: latest.disk_total_bytes };
   document.getElementById('disk').textContent = `${formatBytes(diskData.used_bytes)} / ${formatBytes(diskData.total_bytes)}`;
   document.getElementById('uptime').textContent = formatDuration(latest.uptime_seconds);
-  
+
   const labels = filtered.map(d => new Date(d.timestamp * 1000).toLocaleTimeString());
-  
+
   updateChart('cpuChart', {
     type: 'line',
     data: {
@@ -173,7 +188,9 @@ function updateDashboard(filtered, latest) {
     },
     options: getChartOptions({ max: 100 })
   });
-  
+
+  // FIX SCALING MEMORY: Max Y axis = Total RAM
+  const totalRam = (latest.memory_total_bytes || 1) / k; // Convert to GB/GiB
   updateChart('memoryChart', {
     type: 'line',
     data: {
@@ -186,21 +203,22 @@ function updateDashboard(filtered, latest) {
         tension: 0.4, fill: true
       }]
     },
-    options: getChartOptions()
+    options: getChartOptions({ max: Math.ceil(totalRam) })
   });
 }
+
 
 function updateCPU(filtered, latest) {
   const cpuValues = filtered.map(d => d.cpu_usage || 0);
   const avg = cpuValues.reduce((a, b) => a + b, 0) / cpuValues.length;
-  
+
   document.getElementById('cpu-current').textContent = (latest.cpu_usage || 0).toFixed(1) + '%';
   document.getElementById('cpu-avg').textContent = avg.toFixed(1) + '%';
   document.getElementById('cpu-max').textContent = Math.max(...cpuValues).toFixed(1) + '%';
   document.getElementById('cpu-min').textContent = Math.min(...cpuValues).toFixed(1) + '%';
-  
+
   const labels = filtered.map(d => new Date(d.timestamp * 1000).toLocaleTimeString());
-  
+
   updateChart('cpuDetailChart', {
     type: 'line',
     data: {
@@ -224,11 +242,11 @@ function updateCPU(filtered, latest) {
   document.getElementById('cpu-high').textContent = (high / total * 100).toFixed(1) + '%';
   document.getElementById('cpu-medium').textContent = (medium / total * 100).toFixed(1) + '%';
   document.getElementById('cpu-low').textContent = (low / total * 100).toFixed(1) + '%';
-  
+
   updateChart('cpuDistChart', {
     type: 'doughnut',
     data: {
-      labels: ['High', 'Medium', 'Low'],
+      labels: ['Élevée', 'Moyenne', 'Faible'],
       datasets: [{
         data: [high, medium, low],
         backgroundColor: ['#ff6b35', '#ffcc00', '#4ec9b0'],
@@ -240,22 +258,22 @@ function updateCPU(filtered, latest) {
 }
 
 function updateMemory(filtered, latest) {
-  const k = unitPref === 'decimal' ? 1e9 : 1024**3;
+  const k = unitPref === 'decimal' ? 1e9 : 1024 ** 3;
   const unit = unitPref === 'decimal' ? 'GB' : 'GiB';
   const memUsedBytes = latest.memory_used_bytes || 0;
   const memTotalBytes = latest.memory_total_bytes || 0;
   const memAvailableBytes = memTotalBytes - memUsedBytes;
   const memValues = filtered.map(d => (d.memory_used_bytes || 0) / k);
   const avg = memValues.reduce((a, b) => a + b, 0) / memValues.length;
-  
+
   document.getElementById('mem-used').textContent = formatBytes(memUsedBytes);
   document.getElementById('mem-percent').textContent = (latest.memory_percent || 0).toFixed(1) + '%';
   document.getElementById('mem-total').textContent = formatBytes(memTotalBytes);
   document.getElementById('mem-available').textContent = formatBytes(memAvailableBytes);
-  document.getElementById('mem-max').textContent = formatBytes(Math.max(...memValues.map(v => v * k))); 
+  document.getElementById('mem-max').textContent = formatBytes(Math.max(...memValues.map(v => v * k)));
   document.getElementById('mem-avg').textContent = avg.toFixed(2) + ' ' + unit;
-  document.getElementById('mem-growth').textContent = '0 MB/min'; 
-  document.getElementById('mem-estimate').textContent = 'Never';
+  document.getElementById('mem-growth').textContent = '0 MB/min';
+  document.getElementById('mem-estimate').textContent = 'Jamais';
 
   updateChart('memDetailChart', {
     type: 'line',
@@ -277,39 +295,39 @@ function updateMemory(filtered, latest) {
 }
 
 function updateDisk(filtered, latest) {
-    const diskToMonitor = selectedDisk || { 
-        used_bytes: latest.disk_used_bytes || 0, 
-        total_bytes: latest.disk_total_bytes || 0, 
-        used_percent: latest.disk_percent || 0,
-        mountpoint: 'Primary OS Disk' 
-    };
-    
-    const used = diskToMonitor.used_bytes;
-    const total = diskToMonitor.total_bytes;
-    const free = total - used;
-    const percent = total > 0 ? ((used / total) * 100).toFixed(1) : '0.0';
-    
-    document.getElementById('disk-used').textContent = formatBytes(used);
-    document.getElementById('disk-percent').textContent = percent + '%';
-    document.getElementById('disk-total').textContent = formatBytes(total);
-    document.getElementById('disk-free').textContent = formatBytes(free);
-    document.getElementById('disk-status').textContent = (parseFloat(percent) > 90) ? 'Critique' : 'OK';
-    document.getElementById('disk-info').textContent = `Volume: ${diskToMonitor.mountpoint || 'N/A'} - ${formatBytes(free)} libre.`;
-    
-    updateChart('diskPieChart', {
-      type: 'doughnut',
-      data: { labels: ['Utilisé', 'Libre'], datasets: [{ data: [used, free], backgroundColor: ['#ff6b35', '#4ec9b0'] }] },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#d8d9da' } } } }
-    });
+  const diskToMonitor = selectedDisk || {
+    used_bytes: latest.disk_used_bytes || 0,
+    total_bytes: latest.disk_total_bytes || 0,
+    used_percent: latest.disk_percent || 0,
+    mountpoint: 'Disque Principal'
+  };
 
-    updateChart('diskBarChart', {
-        type: 'bar',
-        data: {
-            labels: ['Espace'],
-            datasets: [ { label: 'Utilisé', data: [used], backgroundColor: '#ff6b35' }, { label: 'Libre', data: [free], backgroundColor: '#4ec9b0' } ]
-        },
-        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true, ticks: { color: '#9fa0a4' }, grid: { color: '#2a2b2f' } }, y: { stacked: true, ticks: { color: '#9fa0a4' }, grid: { color: '#2a2b2f' } } }, plugins: { legend: { labels: { color: '#d8d9da' } } } }
-    });
+  const used = diskToMonitor.used_bytes;
+  const total = diskToMonitor.total_bytes;
+  const free = total - used;
+  const percent = total > 0 ? ((used / total) * 100).toFixed(1) : '0.0';
+
+  document.getElementById('disk-used').textContent = formatBytes(used);
+  document.getElementById('disk-percent').textContent = percent + '%';
+  document.getElementById('disk-total').textContent = formatBytes(total);
+  document.getElementById('disk-free').textContent = formatBytes(free);
+  document.getElementById('disk-status').textContent = (parseFloat(percent) > 90) ? 'Critique' : 'OK';
+  document.getElementById('disk-info').textContent = `Volume: ${diskToMonitor.mountpoint || 'N/A'} - ${formatBytes(free)} libre.`;
+
+  updateChart('diskPieChart', {
+    type: 'doughnut',
+    data: { labels: ['Utilisé', 'Libre'], datasets: [{ data: [used, free], backgroundColor: ['#ff6b35', '#4ec9b0'] }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#d8d9da' } } } }
+  });
+
+  updateChart('diskBarChart', {
+    type: 'bar',
+    data: {
+      labels: ['Espace'],
+      datasets: [{ label: 'Utilisé', data: [used], backgroundColor: '#ff6b35' }, { label: 'Libre', data: [free], backgroundColor: '#4ec9b0' }]
+    },
+    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true, ticks: { color: '#9fa0a4' }, grid: { color: '#2a2b2f' } }, y: { stacked: true, ticks: { color: '#9fa0a4' }, grid: { color: '#2a2b2f' } } }, plugins: { legend: { labels: { color: '#d8d9da' } } } }
+  });
 }
 
 async function updateNetwork(filtered, latest) {
@@ -317,12 +335,12 @@ async function updateNetwork(filtered, latest) {
   const recv = latest.network_recv || 0;
   document.getElementById('net-sent').textContent = formatBytes(sent);
   document.getElementById('net-recv').textContent = formatBytes(recv);
-  
-  const recent = filtered.slice(-10); 
+
+  const recent = filtered.slice(-10);
   let upSpeed = 0, downSpeed = 0;
   if (recent.length >= 2) {
     const last = recent[recent.length - 1];
-    const prev = recent[recent.length - 2]; 
+    const prev = recent[recent.length - 2];
     const timeDiff = last.timestamp - prev.timestamp;
     if (timeDiff > 0) {
       upSpeed = Math.max(0, (last.network_sent - prev.network_sent) / timeDiff);
@@ -331,25 +349,25 @@ async function updateNetwork(filtered, latest) {
   }
   document.getElementById('net-up-speed').textContent = formatBytes(upSpeed) + '/s';
   document.getElementById('net-down-speed').textContent = formatBytes(downSpeed) + '/s';
-  
+
   const k = unitPref === 'decimal' ? 1000 : 1024; // k est pour la conversion B/s -> KB/s ou KiB/s
   const labels = filtered.map(d => new Date(d.timestamp * 1000).toLocaleTimeString());
-  
+
   // Recalcul des vitesses pour tout l'historique (en K/s)
   const sentData = filtered.map((d, i) => {
     if (i === 0) return 0;
     const prev = filtered[i - 1];
     const time = d.timestamp - prev.timestamp;
-    return time > 0 ? ((d.network_sent - prev.network_sent) / time) / k : 0; 
+    return time > 0 ? ((d.network_sent - prev.network_sent) / time) / k : 0;
   });
-  
+
   const recvData = filtered.map((d, i) => {
     if (i === 0) return 0;
     const prev = filtered[i - 1];
     const time = d.timestamp - prev.timestamp;
     return time > 0 ? ((d.network_recv - prev.network_recv) / time) / k : 0;
   });
-  
+
   updateChart('networkChart', {
     type: 'line',
     data: {
@@ -361,7 +379,7 @@ async function updateNetwork(filtered, latest) {
     },
     options: getChartOptions()
   });
-  
+
   // Interface Details
   try {
     const res = await fetch('/api/network');
@@ -369,14 +387,14 @@ async function updateNetwork(filtered, latest) {
     const container = document.getElementById('network-interfaces');
     if (container) {
       if (interfaces.length > 0) {
-        let html = '<div class="chart-header"><h3><i class="fas fa-list"></i> Interface Details</h3></div><div class="stats-container">';
+        let html = '<div class="chart-header"><h3><i class="fas fa-list"></i> Détails Interfaces</h3></div><div class="stats-container">';
         interfaces.forEach(iface => {
           html += `<div class="stat-item"><span class="stat-label"><i class="fas fa-ethernet"></i> ${iface.interface}</span><span class="stat-value">↑ ${formatBytes(iface.bytes_sent)} / ↓ ${formatBytes(iface.bytes_recv)}</span></div>`;
         });
         html += '</div>';
         container.innerHTML = html;
       } else {
-        container.innerHTML = '<div class="chart-header"><h3><i class="fas fa-list"></i> Interface Details</h3></div><p style="padding: 20px; color: #9fa0a4;">No network interfaces found (excluding loopback).</p>';
+        container.innerHTML = '<div class="chart-header"><h3><i class="fas fa-list"></i> Détails Interfaces</h3></div><p style="padding: 20px; color: #9fa0a4;">Aucune interface réseau trouvée (hors loopback).</p>';
       }
     }
   } catch (err) { console.error('Erreur interfaces réseau', err); }
@@ -385,18 +403,18 @@ async function updateNetwork(filtered, latest) {
 function updateUptime(filtered, latest) {
   const uptimeSeconds = latest.uptime_seconds || 0;
   document.getElementById('uptime-current').textContent = formatDuration(uptimeSeconds);
-  
+
   const days = Math.floor(uptimeSeconds / (3600 * 24));
   document.getElementById('uptime-days').textContent = days;
   document.getElementById('uptime-hours').textContent = Math.floor((uptimeSeconds % (3600 * 24)) / 3600);
   document.getElementById('uptime-minutes').textContent = Math.floor((uptimeSeconds % 3600) / 60);
   document.getElementById('uptime-reliability').textContent = '100%';
-  
+
   const circle = document.getElementById('uptime-circle');
   if (circle) {
-    const maxSeconds = 30 * 24 * 3600; 
+    const maxSeconds = 30 * 24 * 3600;
     const circumference = 2 * Math.PI * 90;
-    const progress = Math.min(uptimeSeconds / maxSeconds, 1); 
+    const progress = Math.min(uptimeSeconds / maxSeconds, 1);
     circle.style.strokeDasharray = circumference;
     circle.style.strokeDashoffset = circumference - progress * circumference;
   }
@@ -408,21 +426,21 @@ async function scanNetwork() {
   const btn = document.getElementById('scan-network-btn');
   const status = document.getElementById('scan-status');
   const container = document.getElementById('network-devices-container');
-  
+
   btn.disabled = true;
-  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Scanning...';
-  status.textContent = 'Scanning network...';
-  
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Scan en cours...';
+  status.textContent = 'Scan du réseau...';
+
   try {
     const res = await fetch('/api/network/scan');
     const data = await res.json();
-    
+
     if (data.devices && data.devices.length > 0) {
-      let html = '<table class="styled-table"><thead><tr><th>Status</th><th>IP Address</th><th>Hostname</th><th>MAC</th><th>Vendor</th></tr></thead><tbody>';
+      let html = '<table class="styled-table"><thead><tr><th>Statut</th><th>Adresse IP</th><th>Nom d\'hôte</th><th>MAC</th><th>Vendeur</th></tr></thead><tbody>';
       data.devices.forEach(dev => {
-        const isLocal = dev.is_local ? ' (This Mac)' : '';
+        const isLocal = dev.is_local ? ' (Ce Mac)' : '';
         html += `<tr>
-            <td><span class="status-badge up">Online</span></td>
+            <td><span class="status-badge up">En ligne</span></td>
             <td style="color:#4ec9b0; font-family:monospace;">${dev.ip}</td>
             <td>${dev.hostname || '--'}${isLocal}</td>
             <td style="font-family:monospace;">${dev.mac || '--'}</td>
@@ -431,20 +449,20 @@ async function scanNetwork() {
       });
       html += '</tbody></table>';
       container.innerHTML = html;
-      status.textContent = `Found ${data.devices.length} devices. Local IP: ${data.local_ip || 'N/A'}`;
+      status.textContent = `${data.devices.length} appareils trouvés. IP Locale: ${data.local_ip || 'N/A'}`;
     } else {
-        container.innerHTML = '<div class="empty-state"><p>No devices found.</p></div>';
-        status.textContent = 'Scan finished. No devices found.';
+      container.innerHTML = '<div class="empty-state"><p>Aucun appareil trouvé.</p></div>';
+      status.textContent = 'Scan terminé. Aucun appareil trouvé.';
     }
-  } catch (err) { status.textContent = 'Error during scan.'; }
-  btn.disabled = false; btn.innerHTML = '<i class="fas fa-search"></i> Scan Network';
+  } catch (err) { status.textContent = 'Erreur pendant le scan.'; }
+  btn.disabled = false; btn.innerHTML = '<i class="fas fa-search"></i> Scanner Réseau';
 }
 
 function setProcessSort(sort) {
-    currentSort = sort;
-    document.getElementById('sort-cpu-btn').classList.toggle('active', sort === 'cpu');
-    document.getElementById('sort-mem-btn').classList.toggle('active', sort === 'mem');
-    fetchProcesses();
+  currentSort = sort;
+  document.getElementById('sort-cpu-btn').classList.toggle('active', sort === 'cpu');
+  document.getElementById('sort-mem-btn').classList.toggle('active', sort === 'mem');
+  fetchProcesses();
 }
 
 async function fetchProcesses() {
@@ -452,12 +470,12 @@ async function fetchProcesses() {
     const res = await fetch(`/api/processes?sort=${currentSort}&limit=20`);
     const data = await res.json();
     const container = document.getElementById('processes-table-container');
-    
-    document.getElementById('process-count').textContent = data.processes && data.processes.length > 0 ? 
-        `Top ${data.processes.length} by ${currentSort.toUpperCase()}` : 'No processes found';
+
+    document.getElementById('process-count').textContent = data.processes && data.processes.length > 0 ?
+      `Top ${data.processes.length} par ${currentSort.toUpperCase()}` : 'Aucun processus trouvé';
 
     if (data.processes && data.processes.length > 0) {
-      let html = '<table class="styled-table"><thead><tr><th>PID</th><th>User</th><th>CPU</th><th>MEM</th><th>Command</th><th>Action</th></tr></thead><tbody>';
+      let html = '<table class="styled-table"><thead><tr><th>PID</th><th>Utilisateur</th><th>CPU</th><th>MEM</th><th>Commande</th><th>Action</th></tr></thead><tbody>';
       data.processes.forEach(proc => {
         const cpuClass = proc.cpu > 50 ? 'high' : (proc.cpu > 20 ? 'medium' : 'low');
         const memClass = proc.mem > 50 ? 'high' : (proc.mem > 20 ? 'medium' : 'low');
@@ -473,7 +491,7 @@ async function fetchProcesses() {
       html += '</tbody></table>';
       container.innerHTML = html;
     } else {
-        container.innerHTML = '<div class="empty-state"><p>No processes found.</p></div>';
+      container.innerHTML = '<div class="empty-state"><p>Aucun processus trouvé.</p></div>';
     }
   } catch (err) { console.error(err); }
 }
@@ -483,9 +501,9 @@ async function fetchAlerts() {
     const res = await fetch('/api/alerts');
     const data = await res.json();
     const container = document.getElementById('alerts-container');
-    
+
     document.getElementById('alert-count').textContent = data.alerts.length;
-    document.getElementById('system-status').textContent = data.alerts.length > 0 ? 'Warning' : 'OK';
+    document.getElementById('system-status').textContent = data.alerts.length > 0 ? 'Attention' : 'OK';
     document.getElementById('last-check').textContent = new Date().toLocaleTimeString();
 
     if (data.alerts.length > 0) {
@@ -496,7 +514,7 @@ async function fetchAlerts() {
         html += `<div class="alert-item ${type}">
             <div class="alert-icon"><i class="fas fa-${icon}"></i></div>
             <div class="alert-content">
-                <strong>${alert.category.toUpperCase()} ALERT</strong>
+                <strong>ALERTE ${alert.category.toUpperCase()}</strong>
                 <p>${alert.message}</p>
                 <div class="alert-time"><i class="far fa-clock"></i> ${new Date(alert.timestamp * 1000).toLocaleTimeString()}</div>
             </div>
@@ -505,19 +523,19 @@ async function fetchAlerts() {
       html += '</div>';
       container.innerHTML = html;
     } else {
-        container.innerHTML = `<div class="empty-state"><i class="fas fa-check-circle" style="color:#4ec9b0;"></i><p>System healthy.</p></div>`;
+      container.innerHTML = `<div class="empty-state"><i class="fas fa-check-circle" style="color:#4ec9b0;"></i><p>Système sain.</p></div>`;
     }
   } catch (err) { console.error(err); }
 }
 
-async function fetchLogs() { // NOUVELLE FONCTION
+async function fetchLogs() {
   try {
     const res = await fetch('/api/logs');
     const data = await res.json();
     const container = document.getElementById('logs-table-container');
 
     if (data.logs && data.logs.length > 0) {
-      let html = '<table class="styled-table"><thead><tr><th style="width:15%">Level</th><th>Message</th></tr></thead><tbody>';
+      let html = '<table class="styled-table"><thead><tr><th style="width:15%">Niveau</th><th>Message</th></tr></thead><tbody>';
       data.logs.forEach(log => {
         const levelClass = log.level === 'ERROR' ? 'high' : 'low';
         html += `<tr>
@@ -528,9 +546,9 @@ async function fetchLogs() { // NOUVELLE FONCTION
       html += '</tbody></table>';
       container.innerHTML = html;
     } else {
-      container.innerHTML = `<div class="empty-state"><p>${data.error || 'No logs found or file is empty. Check server.rb configuration.'}</p></div>`;
+      container.innerHTML = `<div class="empty-state"><p>${data.error || 'Aucun journal trouvé ou fichier vide. Vérifiez la config server.rb.'}</p></div>`;
     }
-  } catch (err) { console.error("Log fetch error:", err); }
+  } catch (err) { console.error("Erreur fetch logs:", err); }
 }
 
 // --- Chart.js & Settings (Original) ---
@@ -561,86 +579,86 @@ function getChartOptions(extra = {}) {
 
 // Settings Logic
 function updateSettingsPage() {
-    initPrefs();
-    fetchDisks().then(devices => {
-        const sel = document.getElementById('settings-disk-select');
-        if(!sel) return;
-        sel.innerHTML = '';
-        const def = document.createElement('option');
-        def.text = "Primary OS Disk (Default)"; def.value = "default";
-        const isDefaultSelected = !selectedDisk; 
-        def.selected = isDefaultSelected;
-        sel.add(def);
+  initPrefs();
+  fetchDisks().then(devices => {
+    const sel = document.getElementById('settings-disk-select');
+    if (!sel) return;
+    sel.innerHTML = '';
+    const def = document.createElement('option');
+    def.text = "Disque Principal OS (Défaut)"; def.value = "default";
+    const isDefaultSelected = !selectedDisk;
+    def.selected = isDefaultSelected;
+    sel.add(def);
 
-        devices.forEach(d => {
-            const opt = document.createElement('option');
-            opt.text = `${d.mountpoint} (${formatBytes(d.total_bytes)})`;
-            opt.value = JSON.stringify(d);
-            if(selectedDisk && selectedDisk.mountpoint === d.mountpoint) {
-                 opt.selected = true;
-            }
-            sel.add(opt);
-        });
-
-        document.querySelector(`input[name="unit-pref"][value="${unitPref}"]`).checked = true;
-        const storedRate = localStorage.getItem('refreshRate') || '5000';
-        document.getElementById('settings-refresh-rate').value = storedRate;
-
-        document.getElementById('save-settings')?.addEventListener('click', saveSettings);
-        document.getElementById('reset-settings')?.addEventListener('click', resetSettings);
+    devices.forEach(d => {
+      const opt = document.createElement('option');
+      opt.text = `${d.mountpoint} (${formatBytes(d.total_bytes)})`;
+      opt.value = JSON.stringify(d);
+      if (selectedDisk && selectedDisk.mountpoint === d.mountpoint) {
+        opt.selected = true;
+      }
+      sel.add(opt);
     });
+
+    document.querySelector(`input[name="unit-pref"][value="${unitPref}"]`).checked = true;
+    const storedRate = localStorage.getItem('refreshRate') || '5000';
+    document.getElementById('settings-refresh-rate').value = storedRate;
+
+    document.getElementById('save-settings')?.addEventListener('click', saveSettings);
+    document.getElementById('reset-settings')?.addEventListener('click', resetSettings);
+  });
 }
 
 function saveSettings() {
-    localStorage.setItem('unitPref', document.querySelector('input[name="unit-pref"]:checked').value);
-    const sel = document.getElementById('settings-disk-select');
-    if(sel.value !== 'default') {
-        localStorage.setItem('selectedDisk', sel.value);
-        selectedDisk = JSON.parse(sel.value);
-    }
-    else {
-        localStorage.removeItem('selectedDisk');
-        selectedDisk = null;
-    }
-    localStorage.setItem('refreshRate', document.getElementById('settings-refresh-rate').value);
-    
-    initPrefs(); 
-    clearInterval(intervalID);
-    intervalID = setInterval(mainLoop, parseInt(localStorage.getItem('refreshRate')));
-    switchPage(currentPage); 
-    alert('Settings Saved');
+  localStorage.setItem('unitPref', document.querySelector('input[name="unit-pref"]:checked').value);
+  const sel = document.getElementById('settings-disk-select');
+  if (sel.value !== 'default') {
+    localStorage.setItem('selectedDisk', sel.value);
+    selectedDisk = JSON.parse(sel.value);
+  }
+  else {
+    localStorage.removeItem('selectedDisk');
+    selectedDisk = null;
+  }
+  localStorage.setItem('refreshRate', document.getElementById('settings-refresh-rate').value);
+
+  initPrefs();
+  clearInterval(intervalID);
+  intervalID = setInterval(mainLoop, parseInt(localStorage.getItem('refreshRate')));
+  switchPage(currentPage);
+  alert('Paramètres Enregistrés');
 }
 
 function resetSettings() {
-    localStorage.clear();
-    location.reload(); 
+  localStorage.clear();
+  location.reload();
 }
 
 // --- Point d'entrée pour le démarrage et la boucle ---
 function mainLoop() {
-    if(['dashboard','cpu','memory','disk','network','uptime'].includes(currentPage)) fetchData();
-    if(currentPage === 'processes') fetchProcesses();
-    if(currentPage === 'alerts') fetchAlerts();
-    if(currentPage === 'logs') fetchLogs(); // NOUVEAU
+  if (['dashboard', 'cpu', 'memory', 'disk', 'network', 'uptime'].includes(currentPage)) fetchData();
+  if (currentPage === 'processes') fetchProcesses();
+  if (currentPage === 'alerts') fetchAlerts();
+  if (currentPage === 'logs') fetchLogs(); // NOUVEAU
 }
 
 document.getElementById('export-json')?.addEventListener('click', () => { window.location.href = '/api/system'; });
 
 // --- Start: Lancement après chargement complet du DOM ---
 document.addEventListener('DOMContentLoaded', () => {
-    initPrefs();
-    initNav();
-    
-    // Charger la page Settings au démarrage pour initialiser les écouteurs de sauvegarde/reset
-    updateSettingsPage(); 
+  initPrefs();
+  initNav();
 
-    // Démarre sur le dashboard
-    switchPage('dashboard');
-    const rate = parseInt(localStorage.getItem('refreshRate') || '5000');
-    
-    // Démarrer la boucle de rafraîchissement
-    intervalID = setInterval(mainLoop, rate);
-    
-    // Premier fetch immédiat
-    fetchData();
+  // Charger la page Settings au démarrage pour initialiser les écouteurs de sauvegarde/reset
+  updateSettingsPage();
+
+  // Démarre sur le dashboard
+  switchPage('dashboard');
+  const rate = parseInt(localStorage.getItem('refreshRate') || '5000');
+
+  // Démarrer la boucle de rafraîchissement
+  intervalID = setInterval(mainLoop, rate);
+
+  // Premier fetch immédiat
+  fetchData();
 });

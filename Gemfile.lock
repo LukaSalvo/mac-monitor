@@ -12,7 +12,6 @@ GEM
     ffi (1.17.2-x86-linux)
     ffi (1.17.2-x86-linux-musl)
     ffi (1.17.2-x86_64-darwin)
-    ffi (1.17.2-x86_64-linux)
     ffi (1.17.2-x86_64-linux-musl)
     logger (1.7.0)
     mail (2.9.0)
@@ -61,7 +60,6 @@ GEM
       ffi (~> 1.1)
     tilt (2.6.1)
     timeout (0.5.0)
-    vmstat (2.3.1)
 
 PLATFORMS
   aarch64-linux
@@ -83,7 +81,6 @@ DEPENDENCIES
   rexml
   sinatra
   sys-filesystem
-  vmstat
 
 BUNDLED WITH
    2.6.9
