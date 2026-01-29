@@ -39,8 +39,8 @@ EOF
     sudo systemctl daemon-reload
     echo "Enabling service..."
     sudo systemctl enable mac-monitor
-    echo "Starting service..."
-    sudo systemctl start mac-monitor
+    echo "Starting/Restarting service..."
+    sudo systemctl restart mac-monitor
     echo "Status:"
     sudo systemctl status mac-monitor --no-pager
 
@@ -81,7 +81,9 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
 EOF
 
     echo "Loading LaunchAgent..."
+    echo "Reloading LaunchAgent..."
     launchctl unload "$PLIST_FILE" 2>/dev/null
+    sleep 1
     launchctl load "$PLIST_FILE"
     echo "Service installed and loaded. Logs at $APP_DIR/server.log"
 else
