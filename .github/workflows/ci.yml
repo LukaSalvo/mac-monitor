@@ -1,60 +1,52 @@
-# Nom affiché dans l'interface GitHub Actions
 name: CI/CD Pipeline
 
-# Déclencheurs (Triggers)
 on:
   push:
-    # S'exécute lors d'un push sur master (prod), main ou develop (test)
     branches: [ main, master, develop ]
   pull_request:
-    # S'exécute lors de la création d'une PR vers master ou main
     branches: [ main, master ]
   schedule:
-    # Scan de sécurité automatique tous les lundis à 8h00
     - cron: '0 8 * * 1'
 
 jobs:
-  # PREMIER JOB : Vérification de la sécurité
+  # ÉTAPE 1 : Audit de sécurité
   security-audit:
     runs-on: ubuntu-latest
     steps:
-      # Récupération du code
       - uses: actions/checkout@v4
-
-      # Installation de l'environnement Ruby (nécessaire pour bundler-audit)
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.2'
-          bundler-cache: true # Accélère le job en mettant les gems en cache
-
-      # Audit de sécurité : le job s'arrêtera ici s'il y a une faille critique
+          bundler-cache: true
       - name: Security Check
         run: |
           gem install bundler-audit
           bundle-audit update
           bundle-audit check
 
-  # DEUXIÈME JOB : Déploiement (uniquement si l'audit est réussi)
-  deploy:
-    needs: security-audit # Dépendance : si l'audit échoue, on ne déploie pas
-    # Condition : on ne déploie QUE si on est sur la branche master ou main
+  # ÉTAPE 2 : Test de déploiement (Linux & Mac)
+  deploy-test:
+    needs: security-audit
+    # On ne lance le test de déploiement que sur la branche master/main
     if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
-    
-    # Stratégie de matrice pour tester/déployer sur plusieurs OS en parallèle
     strategy:
+      fail-fast: false # Si Linux échoue, on veut quand même voir si Mac réussit
       matrix:
         os: [ubuntu-latest, macos-latest]
     
-    runs-on: ${{ matrix.os }} # Utilise la variable de la matrice (Linux ou Mac)
+    runs-on: ${{ matrix.os }}
 
     steps:
-      # Récupération du code sur la machine de déploiement
       - uses: actions/checkout@v4
-      
-      # Exécution du script de déploiement personnalisé
-      - name: Execute deploy script
+
+      # Installation de Ruby indispensable sur chaque machine de la matrice
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+
+      - name: Run Deployment Script
         run: |
-          # Donne les droits d'exécution au script au cas où
           chmod +x ./deploy.sh
-          # Lance le script
           ./deploy.sh
