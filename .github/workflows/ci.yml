@@ -1,34 +1,60 @@
-name: Dependency & Security Check
+# Nom affiché dans l'interface GitHub Actions
+name: CI/CD Pipeline
 
+# Déclencheurs (Triggers)
 on:
   push:
-    branches: [ main, master ]
+    # S'exécute lors d'un push sur master (prod), main ou develop (test)
+    branches: [ main, master, develop ]
   pull_request:
+    # S'exécute lors de la création d'une PR vers master ou main
     branches: [ main, master ]
   schedule:
-    # Planification : tous les lundis à 8h00
+    # Scan de sécurité automatique tous les lundis à 8h00
     - cron: '0 8 * * 1'
 
 jobs:
-  check-dependencies:
+  # PREMIER JOB : Vérification de la sécurité
+  security-audit:
     runs-on: ubuntu-latest
+    steps:
+      # Récupération du code
+      - uses: actions/checkout@v4
+
+      # Installation de l'environnement Ruby (nécessaire pour bundler-audit)
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true # Accélère le job en mettant les gems en cache
+
+      # Audit de sécurité : le job s'arrêtera ici s'il y a une faille critique
+      - name: Security Check
+        run: |
+          gem install bundler-audit
+          bundle-audit update
+          bundle-audit check
+
+  # DEUXIÈME JOB : Déploiement (uniquement si l'audit est réussi)
+  deploy:
+    needs: security-audit # Dépendance : si l'audit échoue, on ne déploie pas
+    # Condition : on ne déploie QUE si on est sur la branche master ou main
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+    
+    # Stratégie de matrice pour tester/déployer sur plusieurs OS en parallèle
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    
+    runs-on: ${{ matrix.os }} # Utilise la variable de la matrice (Linux ou Mac)
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Set up Ruby
-      uses: ruby/setup-ruby@v1
-      with:
-        ruby-version: '3.2' # À ajuster selon votre version
-        bundler-cache: true
-
-    - name: Check for outdated gems
-      run: |
-        bundle outdated || echo "Certaines gems ne sont pas à jour."
-
-    - name: Security Audit
-      run: |
-        gem install bundler-audit
-        bundle-audit update
-        bundle-audit check || echo "Vulnérabilités détectées dans les dépendances."
+      # Récupération du code sur la machine de déploiement
+      - uses: actions/checkout@v4
+      
+      # Exécution du script de déploiement personnalisé
+      - name: Execute deploy script
+        run: |
+          # Donne les droits d'exécution au script au cas où
+          chmod +x ./deploy.sh
+          # Lance le script
+          ./deploy.sh
