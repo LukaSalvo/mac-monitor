@@ -1,0 +1,52 @@
+#!/usr/bin/env ruby
+$LOAD_PATH.unshift(File.expand_path("../lib", __dir__))
+
+# Assure les requires de base (ton SystemMonitor utilise ces modules)
+require "rbconfig"
+require "etc"
+require "socket"
+
+require "system_monitor"
+require "ticket_store"
+require "ticket_engine"
+require "metrics_store"
+require "fatal_detector"
+
+def pick_disk_percent(disks)
+  return nil if disks.nil? || disks.empty?
+  root = disks.find { |d| d[:mountpoint] == "/" } || disks.first
+  total = root[:total_bytes].to_f
+  used  = root[:used_bytes].to_f
+  return nil if total <= 0
+  ((used / total) * 100).round
+end
+
+def collect_metrics
+  cpu = SystemMonitor.get_cpu_usage
+  mem = SystemMonitor.get_memory_usage
+  disks = SystemMonitor.get_disks
+
+  free_bytes = (mem[:total].to_i - mem[:used].to_i)
+  free_mb = (free_bytes / 1024.0 / 1024.0).round
+
+  {
+    cpu_percent: cpu,
+    disk_percent: pick_disk_percent(disks),
+    ram_free_mb: free_mb,
+    ram_percent: mem[:percent],
+    cpu_temp_c: SystemMonitor.get_cpu_temperature,
+    uptime_seconds: SystemMonitor.get_uptime_seconds
+  }.compact
+end
+
+TicketStore.init
+
+FatalDetector.wrap do
+  metrics = collect_metrics
+  MetricsStore.append(metrics) unless metrics.empty?
+  TicketEngine.run(metrics)
+  FatalDetector.scan_log_file(ENV["MONITOR_LOG"])
+end
+
+puts "monitor_tickets OK"
+

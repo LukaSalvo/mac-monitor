@@ -180,45 +180,61 @@ module SystemMonitor
     processes
   end
 
-  def get_disks
-    d = []
+def get_disks
+  d = []
+
+  # Essaye sys-filesystem si dispo, sinon fallback df (évite NameError)
+  begin
+    require 'sys/filesystem'
     Sys::Filesystem.mounts.each do |m|
       next if m.mount_type =~ /tmpfs|proc|devfs|sysfs|squashfs|autofs|devpts/
       begin
         s = Sys::Filesystem.stat(m.mount_point)
         t = s.blocks * s.block_size
         next if t < 10**9
-        d << { device: m.name, mountpoint: m.mount_point, total_bytes: t, used_bytes: t - (s.blocks_free * s.block_size) }
-      rescue; end
+        d << {
+          device: m.name,
+          mountpoint: m.mount_point,
+          total_bytes: t,
+          used_bytes: t - (s.blocks_free * s.block_size)
+        }
+      rescue
+      end
     end
-
-    if d.empty?
-      begin
-        if is_linux?
-          `df -B1 -x tmpfs -x devtmpfs -x squashfs`.lines.drop(1).each do |line|
-            parts = line.split
-            next if parts.length < 6
-            total = parts[1].to_i
-            used = parts[2].to_i
-            mount = parts[5]
-            next if total < 10**9
-            d << { device: parts[0], mountpoint: mount, total_bytes: total, used_bytes: used }
-          end
-        elsif is_mac?
-          `df -k`.lines.drop(1).each do |line|
-            parts = line.split
-            next if parts.length < 6
-            total = parts[1].to_i * 1024
-            used = parts[2].to_i * 1024
-            mount = parts.last
-            next if total < 10**9
-            d << { device: parts[0], mountpoint: mount, total_bytes: total, used_bytes: used }
-          end
-        end
-      rescue; end
-    end
-    d
+  rescue LoadError, NameError
+    # sys-filesystem absent -> on laisse d vide, et on passera au fallback df
   end
+
+  if d.empty?
+    begin
+      if is_linux?
+        `df -B1 -x tmpfs -x devtmpfs -x squashfs`.lines.drop(1).each do |line|
+          parts = line.split
+          next if parts.length < 6
+          total = parts[1].to_i
+          used  = parts[2].to_i
+          mount = parts[5]
+          next if total < 10**9
+          d << { device: parts[0], mountpoint: mount, total_bytes: total, used_bytes: used }
+        end
+      elsif is_mac?
+        `df -k`.lines.drop(1).each do |line|
+          parts = line.split
+          next if parts.length < 6
+          total = parts[1].to_i * 1024
+          used  = parts[2].to_i * 1024
+          mount = parts.last
+          next if total < 10**9
+          d << { device: parts[0], mountpoint: mount, total_bytes: total, used_bytes: used }
+        end
+      end
+    rescue
+    end
+  end
+
+  d
+end
+
 
   def get_root_disk_usage
     result = { total: 0, used: 0, percent: 0 }

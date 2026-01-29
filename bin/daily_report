@@ -1,0 +1,65 @@
+#!/usr/bin/env ruby
+$LOAD_PATH.unshift(File.expand_path("../lib", __dir__))
+
+require "date"
+require "ticket_store"
+require "metrics_store"
+
+TicketStore.init
+
+today = Date.today
+yesterday = today - 1
+
+today_title = "Rapport quotidien #{today}"
+today_fp    = "daily:#{today}"
+
+yesterday_title = "Rapport quotidien #{yesterday}"
+yesterday_fp    = "daily:#{yesterday}"
+
+# 1) Ferme le rapport d'hier (si encore open)
+TicketStore.close_open(yesterday_title, fingerprint: yesterday_fp)
+
+# 2) On prend les métriques depuis minuit (plus "pro" qu'un sliding window 24h)
+midnight = Time.local(today.year, today.month, today.day, 0, 0, 0).to_i
+
+# On lit large, puis on filtre depuis minuit (MetricsStore a last_seconds)
+entries = MetricsStore.last_seconds(26 * 3600).select { |e| e[:ts].to_i >= midnight }
+
+def stats(entries, key)
+  vals = entries.map { |e| e[key] }.compact.map(&:to_f)
+  return nil if vals.empty?
+  {
+    min: vals.min.round(2),
+    max: vals.max.round(2),
+    avg: (vals.sum / vals.size).round(2),
+    count: vals.size
+  }
+end
+
+cpu  = stats(entries, :cpu_percent)
+disk = stats(entries, :disk_percent)
+ram  = stats(entries, :ram_free_mb)
+
+desc = []
+desc << "Période: #{Time.at(midnight)} -> maintenant"
+desc << ""
+desc << "CPU (%): #{cpu || 'n/a'}"
+desc << "Disque (%): #{disk || 'n/a'}"
+desc << "RAM libre (MB): #{ram || 'n/a'}"
+desc << ""
+desc << "Échantillons: #{entries.size}"
+desc << "Dernière mise à jour: #{Time.now}"
+
+TicketStore.upsert(
+  today_title,
+  desc.join("\n"),
+  "info",
+  fingerprint: today_fp
+)
+
+# IMPORTANT: on NE ferme PAS le ticket du jour.
+# Comme ça, upsert le retrouve et fait occurrences++ au prochain run.
+
+puts "daily_report updated: #{today_title} (samples=#{entries.size})"
+
+

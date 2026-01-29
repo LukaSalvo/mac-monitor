@@ -1,5 +1,39 @@
 [
   {
+    "id": "3294d46a-46e6-489f-baed-881341b21b6d",
+    "first_seen": 1769704376,
+    "last_seen": 1769704464,
+    "title": "CPU élevé",
+    "description": "cpu_percent=0.3% (seuil 0%)",
+    "level": "warning",
+    "status": "closed",
+    "occurrences": 3,
+    "fingerprint": "cpu_percent",
+    "closed_at": 1769704718
+  },
+  {
+    "id": "a150c9aa-ce17-4108-8e70-8a23f6301e9c",
+    "first_seen": 1769702104,
+    "last_seen": 1769703263,
+    "title": "Rapport quotidien 2026-01-29",
+    "description": "Période: 2026-01-29 00:00:00 +0100 -> maintenant\n\nCPU (%): {:min=>0.2, :max=>0.7, :avg=>0.47, :count=>3}\nDisque (%): {:min=>1.0, :max=>1.0, :avg=>1.0, :count=>3}\nRAM libre (MB): {:min=>2230.0, :max=>2239.0, :avg=>2235.67, :count=>3}\n\nÉchantillons: 3\nDernière mise à jour: 2026-01-29 17:14:23 +0100",
+    "level": "info",
+    "status": "open",
+    "occurrences": 8,
+    "fingerprint": "daily:2026-01-29"
+  },
+  {
+    "id": "5e295f93-5ac4-4d44-91cf-d9c3edbd82de",
+    "first_seen": 1769700873,
+    "last_seen": 1769700873,
+    "title": "Fatal error",
+    "description": "NameError: uninitialized constant SystemMonitor::Sys\n/home/leo/mac-monitor/mac-monitor/lib/system_monitor.rb:185:in `get_disks'\n./bin/monitor_tickets:27:in `collect_metrics'\n./bin/monitor_tickets:45:in `block in <main>'\n/home/leo/mac-monitor/mac-monitor/lib/fatal_detector.rb:10:in `wrap'\n./bin/monitor_tickets:44:in `<main>'",
+    "level": "critical",
+    "status": "open",
+    "occurrences": 1,
+    "fingerprint": "NameError"
+  },
+  {
     "id": 1768990844,
     "timestamp": 1768990844,
     "title": "Critical Log Error",
