@@ -38,15 +38,17 @@ end
 
 # Vérifie la dernière version sur GitHub
 def check_github_version
-  repo = "https://github.com/LukaSalvo/mac-monitor" 
+  repo = "LukaSalvo/mac-monitor" 
   uri = URI("https://api.github.com/repos/#{repo}/tags")
   
   http = Net::HTTP.new(uri.host, uri.port)
   http.use_ssl = true
   request = Net::HTTP::Get.new(uri)
-  request['User-Agent'] = 'Ruby-Version-Checker' # Requis par l'API GitHub
+  request['User-Agent'] = 'Ruby-Version-Checker'
   
   response = http.request(request)
+  
+  # Si l'API renvoie autre chose que 200 (ex: 404), on arrête
   return nil unless response.code == '200'
   
   tags = JSON.parse(response.body)
