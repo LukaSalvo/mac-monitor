@@ -2,11 +2,9 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, master, develop ]
+    branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
-  schedule:
-    - cron: '0 8 * * 1'
 
 jobs:
   # ÉTAPE 1 : Audit de sécurité
@@ -24,22 +22,33 @@ jobs:
           bundle-audit update
           bundle-audit check
 
-  # ÉTAPE 2 : Test de déploiement (Linux & Mac)
+  # ÉTAPE 2 : Test de déploiement et détection de changements
   deploy-test:
     needs: security-audit
-    # On ne lance le test de déploiement que sur la branche master/main
     if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
     strategy:
-      fail-fast: false # Si Linux échoue, on veut quand même voir si Mac réussit
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-    
     runs-on: ${{ matrix.os }}
+    
+    # On définit des sorties (outputs) pour savoir si les fichiers ont changé
+    outputs:
+      important_changes: ${{ steps.filter.outputs.important }}
 
     steps:
       - uses: actions/checkout@v4
 
-      # Installation de Ruby indispensable sur chaque machine de la matrice
+      # Filtre pour détecter les changements dans les fichiers spécifiques
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            important:
+              - 'app.rb'
+              - 'deploy.sh'
+              - 'public/**'
+
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
@@ -50,3 +59,36 @@ jobs:
         run: |
           chmod +x ./deploy.sh
           ./deploy.sh
+
+  # ÉTAPE 3 : Création automatique du Tag de version
+  create-tag:
+    needs: deploy-test
+    # On ne crée le tag que s'il y a eu des changements importants sur master
+    if: github.ref == 'refs/heads/master' && needs.deploy-test.outputs.important_changes == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create and Push Tag
+        run: |
+          # Récupère le dernier tag ou commence à v1.0.0
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
+          
+          # Incrémentation simple du patch (v1.0.x)
+          VERSION_BITS=(${LATEST_TAG//./ })
+          V_MAJOR=${VERSION_BITS[0]}
+          V_MINOR=${VERSION_BITS[1]}
+          V_PATCH=${VERSION_BITS[2]}
+          V_PATCH=$((V_PATCH + 1))
+          NEW_TAG="$V_MAJOR.$V_MINOR.$V_PATCH"
+          
+          echo "Nouveau changement detecte. Creation du tag : $NEW_TAG"
+          
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git tag $NEW_TAG
+          git push origin $NEW_TAG
