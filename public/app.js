@@ -889,3 +889,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // 7. Vérifier les mises à jour GitHub (Nouveau)
   checkUpdates();
 });
+
+
+//test
