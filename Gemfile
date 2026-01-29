@@ -7,5 +7,5 @@ gem 'puma'
 gem 'rackup'
 gem 'sys-filesystem'
 
-gem 'pony'  # Pour les notifications par email (requête précédente)
+# gem 'pony'  # Removed (Switched to Discord Webhook)
 gem 'rexml' # Pour le parsing XML de Nmap (correction du LoadError)

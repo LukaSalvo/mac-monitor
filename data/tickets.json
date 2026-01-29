@@ -1,0 +1,10 @@
+[
+  {
+    "id": 1768990844,
+    "timestamp": 1768990844,
+    "title": "Critical Log Error",
+    "description": "[2026-01-21 11:20:00] ERROR: Simulating a critical failure for testing tickets",
+    "level": "critical",
+    "status": "open"
+  }
+]

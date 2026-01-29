@@ -1,18 +1,9 @@
-// app.js
-
-/**
- * Fichier : app.js (Version corrigée avec DOMContentLoaded et Logs)
- * Conserve les graphiques d'origine + les nouveaux outils.
- */
-
 let charts = {};
 let currentPage = 'dashboard';
 let intervalID;
 let selectedDisk = null;
 let unitPref = 'binary';
-let currentSort = 'cpu'; // Ajout pour le tri des processus
-
-// --- Utilitaires ---
+let currentSort = 'cpu';
 
 function formatBytes(bytes) {
   if (bytes === 0 || bytes === null || bytes === undefined) return '0 B';
@@ -38,8 +29,6 @@ function formatDuration(seconds) {
   return parts.join(' ');
 }
 
-// --- Initialisation ---
-
 function initPrefs() {
   try {
     unitPref = localStorage.getItem('unitPref') || 'binary';
@@ -47,9 +36,10 @@ function initPrefs() {
     if (storedDisk && storedDisk !== 'null') {
       selectedDisk = JSON.parse(storedDisk);
     }
-  } catch (e) { console.error("Erreur préférences:", e); }
+  } catch (e) {
+    console.error("Erreur préférences:", e);
+  }
 }
-
 
 function initNav() {
   document.querySelectorAll('.menu-item').forEach(item => {
@@ -60,7 +50,6 @@ function initNav() {
     });
   });
 
-  // Listeners pour les nouvelles pages et les boutons de contrôle
   document.getElementById('scan-network-btn')?.addEventListener('click', scanNetwork);
   document.getElementById('sort-cpu-btn')?.addEventListener('click', () => setProcessSort('cpu'));
   document.getElementById('sort-mem-btn')?.addEventListener('click', () => setProcessSort('mem'));
@@ -71,12 +60,10 @@ function initNav() {
 function switchPage(page) {
   currentPage = page;
 
-  // UI Updates
   document.querySelectorAll('.menu-item').forEach(i => i.classList.remove('active'));
   const active = document.querySelector(`[data-page="${page}"]`);
   if (active) active.classList.add('active');
 
-  // Traduction titres pages
   const titles = {
     'dashboard': 'Tableau de bord',
     'cpu': 'Moniteur CPU',
@@ -87,6 +74,7 @@ function switchPage(page) {
     'scanner': 'Scanner Réseau',
     'processes': 'Gestionnaire Tâches',
     'alerts': 'Alertes Système',
+    'tickets': 'Tickets Incidents',
     'logs': 'Journaux App',
     'settings': 'Paramètres'
   };
@@ -96,25 +84,22 @@ function switchPage(page) {
   const activePage = document.getElementById(`${page}-page`);
   if (activePage) activePage.classList.add('active');
 
-  // Logic Dispatch
   if (page === 'settings') {
     updateSettingsPage();
   } else if (page === 'scanner') {
-    // Rien à charger auto pour scanner
   } else if (page === 'processes') {
     fetchProcesses();
   } else if (page === 'alerts') {
     fetchAlerts();
+  } else if (page === 'tickets') {
+    fetchTickets();
   } else if (page === 'logs') {
     fetchLogs();
   } else {
-    // Pages dashboard, cpu, memory, disk, network, uptime
     if (page === 'disk' || page === 'network') fetchDisks();
     fetchData();
   }
 }
-
-// --- Récupération des Données Système (Graphiques) ---
 
 async function fetchData(force = false) {
   try {
@@ -122,7 +107,6 @@ async function fetchData(force = false) {
     if (!res.ok) throw new Error('Échec fetch system');
     const data = await res.json();
 
-    // Mettre à jour la température
     document.getElementById('cpu-temp').textContent = data.length > 0 && data[data.length - 1].cpu_temp ?
       `${data[data.length - 1].cpu_temp}°C` : '--';
 
@@ -131,31 +115,43 @@ async function fetchData(force = false) {
     const filtered = data.filter(d => d.timestamp >= cutoff);
 
     if (filtered.length === 0) {
-      console.warn("Aucune donnée disponible après filtrage.");
       return;
     }
     const latest = filtered[filtered.length - 1];
 
-    // Switch vers vos fonctions originales
     switch (currentPage) {
-      case 'dashboard': updateDashboard(filtered, latest); break;
-      case 'cpu': updateCPU(filtered, latest); break;
-      case 'memory': updateMemory(filtered, latest); break;
-      case 'disk': updateDisk(filtered, latest); break;
-      case 'network': updateNetwork(filtered, latest); break;
-      case 'uptime': updateUptime(filtered, latest); break;
+      case 'dashboard':
+        updateDashboard(filtered, latest);
+        break;
+      case 'cpu':
+        updateCPU(filtered, latest);
+        break;
+      case 'memory':
+        updateMemory(filtered, latest);
+        break;
+      case 'disk':
+        updateDisk(filtered, latest);
+        break;
+      case 'network':
+        updateNetwork(filtered, latest);
+        break;
+      case 'uptime':
+        updateUptime(filtered, latest);
+        break;
     }
-  } catch (err) { console.error('Erreur data:', err); }
+  } catch (err) {
+    console.error('Erreur data:', err);
+  }
 }
 
 async function fetchDisks() {
   try {
     const res = await fetch('/api/disks');
     if (res.ok) return await res.json();
-  } catch (err) { return []; }
+  } catch (err) {
+    return [];
+  }
 }
-
-// --- Vos fonctions de mise à jour ORIGINALES (pour garder les graphs) ---
 
 function updateDashboard(filtered, latest) {
   const k = unitPref === 'decimal' ? 1e9 : 1024 ** 3;
@@ -168,7 +164,10 @@ function updateDashboard(filtered, latest) {
   document.getElementById('cpu').textContent = (latest.cpu_usage || 0).toFixed(1) + '%';
   document.getElementById('memory').textContent = `${formatBytes(latest.memory_used_bytes)} / ${formatBytes(latest.memory_total_bytes)}`;
 
-  const diskData = selectedDisk || { used_bytes: latest.disk_used_bytes, total_bytes: latest.disk_total_bytes };
+  const diskData = selectedDisk || {
+    used_bytes: latest.disk_used_bytes,
+    total_bytes: latest.disk_total_bytes
+  };
   document.getElementById('disk').textContent = `${formatBytes(diskData.used_bytes)} / ${formatBytes(diskData.total_bytes)}`;
   document.getElementById('uptime').textContent = formatDuration(latest.uptime_seconds);
 
@@ -183,14 +182,16 @@ function updateDashboard(filtered, latest) {
         data: filtered.map(d => d.cpu_usage || 0),
         borderColor: '#ff6b35',
         backgroundColor: 'rgba(255, 107, 53, 0.1)',
-        tension: 0.4, fill: true
+        tension: 0.4,
+        fill: true
       }]
     },
-    options: getChartOptions({ max: 100 })
+    options: getChartOptions({
+      max: 100
+    })
   });
 
-  // FIX SCALING MEMORY: Max Y axis = Total RAM
-  const totalRam = (latest.memory_total_bytes || 1) / k; // Convert to GB/GiB
+  const totalRam = (latest.memory_total_bytes || 1) / k;
   updateChart('memoryChart', {
     type: 'line',
     data: {
@@ -200,13 +201,15 @@ function updateDashboard(filtered, latest) {
         data: filtered.map(d => (d.memory_used_bytes || 0) / k),
         borderColor: '#4ec9b0',
         backgroundColor: 'rgba(78, 201, 176, 0.1)',
-        tension: 0.4, fill: true
+        tension: 0.4,
+        fill: true
       }]
     },
-    options: getChartOptions({ max: Math.ceil(totalRam) })
+    options: getChartOptions({
+      max: Math.ceil(totalRam)
+    })
   });
 }
-
 
 function updateCPU(filtered, latest) {
   const cpuValues = filtered.map(d => d.cpu_usage || 0);
@@ -228,10 +231,13 @@ function updateCPU(filtered, latest) {
         data: cpuValues,
         borderColor: '#ff6b35',
         backgroundColor: 'rgba(255, 107, 53, 0.2)',
-        tension: 0.4, fill: true
+        tension: 0.4,
+        fill: true
       }]
     },
-    options: getChartOptions({ max: 100 })
+    options: getChartOptions({
+      max: 100
+    })
   });
 
   const high = cpuValues.filter(v => v > 80).length;
@@ -250,10 +256,22 @@ function updateCPU(filtered, latest) {
       datasets: [{
         data: [high, medium, low],
         backgroundColor: ['#ff6b35', '#ffcc00', '#4ec9b0'],
-        borderWidth: 2, borderColor: '#111217'
+        borderWidth: 2,
+        borderColor: '#111217'
       }]
     },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#d8d9da' }, position: 'bottom' } } }
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          labels: {
+            color: '#d8d9da'
+          },
+          position: 'bottom'
+        }
+      }
+    }
   });
 }
 
@@ -279,7 +297,14 @@ function updateMemory(filtered, latest) {
     type: 'line',
     data: {
       labels: filtered.map(d => new Date(d.timestamp * 1000).toLocaleTimeString()),
-      datasets: [{ label: `Mémoire ${unit}`, data: memValues, borderColor: '#4ec9b0', backgroundColor: 'rgba(78, 201, 176, 0.2)', tension: 0.4, fill: true }]
+      datasets: [{
+        label: `Mémoire ${unit}`,
+        data: memValues,
+        borderColor: '#4ec9b0',
+        backgroundColor: 'rgba(78, 201, 176, 0.2)',
+        tension: 0.4,
+        fill: true
+      }]
     },
     options: getChartOptions()
   });
@@ -288,9 +313,22 @@ function updateMemory(filtered, latest) {
     type: 'doughnut',
     data: {
       labels: ['Utilisée', 'Disponible'],
-      datasets: [{ data: [memUsedBytes, memAvailableBytes], backgroundColor: ['#ff6b35', '#4ec9b0'] }]
+      datasets: [{
+        data: [memUsedBytes, memAvailableBytes],
+        backgroundColor: ['#ff6b35', '#4ec9b0']
+      }]
     },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#d8d9da' } } } }
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          labels: {
+            color: '#d8d9da'
+          }
+        }
+      }
+    }
   });
 }
 
@@ -316,17 +354,72 @@ function updateDisk(filtered, latest) {
 
   updateChart('diskPieChart', {
     type: 'doughnut',
-    data: { labels: ['Utilisé', 'Libre'], datasets: [{ data: [used, free], backgroundColor: ['#ff6b35', '#4ec9b0'] }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#d8d9da' } } } }
+    data: {
+      labels: ['Utilisé', 'Libre'],
+      datasets: [{
+        data: [used, free],
+        backgroundColor: ['#ff6b35', '#4ec9b0']
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          labels: {
+            color: '#d8d9da'
+          }
+        }
+      }
+    }
   });
 
   updateChart('diskBarChart', {
     type: 'bar',
     data: {
       labels: ['Espace'],
-      datasets: [{ label: 'Utilisé', data: [used], backgroundColor: '#ff6b35' }, { label: 'Libre', data: [free], backgroundColor: '#4ec9b0' }]
+      datasets: [{
+        label: 'Utilisé',
+        data: [used],
+        backgroundColor: '#ff6b35'
+      }, {
+        label: 'Libre',
+        data: [free],
+        backgroundColor: '#4ec9b0'
+      }]
     },
-    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true, ticks: { color: '#9fa0a4' }, grid: { color: '#2a2b2f' } }, y: { stacked: true, ticks: { color: '#9fa0a4' }, grid: { color: '#2a2b2f' } } }, plugins: { legend: { labels: { color: '#d8d9da' } } } }
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: {
+          stacked: true,
+          ticks: {
+            color: '#9fa0a4'
+          },
+          grid: {
+            color: '#2a2b2f'
+          }
+        },
+        y: {
+          stacked: true,
+          ticks: {
+            color: '#9fa0a4'
+          },
+          grid: {
+            color: '#2a2b2f'
+          }
+        }
+      },
+      plugins: {
+        legend: {
+          labels: {
+            color: '#d8d9da'
+          }
+        }
+      }
+    }
   });
 }
 
@@ -337,7 +430,8 @@ async function updateNetwork(filtered, latest) {
   document.getElementById('net-recv').textContent = formatBytes(recv);
 
   const recent = filtered.slice(-10);
-  let upSpeed = 0, downSpeed = 0;
+  let upSpeed = 0,
+    downSpeed = 0;
   if (recent.length >= 2) {
     const last = recent[recent.length - 1];
     const prev = recent[recent.length - 2];
@@ -350,10 +444,9 @@ async function updateNetwork(filtered, latest) {
   document.getElementById('net-up-speed').textContent = formatBytes(upSpeed) + '/s';
   document.getElementById('net-down-speed').textContent = formatBytes(downSpeed) + '/s';
 
-  const k = unitPref === 'decimal' ? 1000 : 1024; // k est pour la conversion B/s -> KB/s ou KiB/s
+  const k = unitPref === 'decimal' ? 1000 : 1024;
   const labels = filtered.map(d => new Date(d.timestamp * 1000).toLocaleTimeString());
 
-  // Recalcul des vitesses pour tout l'historique (en K/s)
   const sentData = filtered.map((d, i) => {
     if (i === 0) return 0;
     const prev = filtered[i - 1];
@@ -372,15 +465,27 @@ async function updateNetwork(filtered, latest) {
     type: 'line',
     data: {
       labels,
-      datasets: [
-        { label: `Envoi (${unitPref === 'decimal' ? 'KB/s' : 'KiB/s'})`, data: sentData, borderColor: '#ff6b35', backgroundColor: 'rgba(255, 107, 53, 0.1)', tension: 0.4, fill: true },
-        { label: `Réception (${unitPref === 'decimal' ? 'KB/s' : 'KiB/s'})`, data: recvData, borderColor: '#4ec9b0', backgroundColor: 'rgba(78, 201, 176, 0.1)', tension: 0.4, fill: true }
+      datasets: [{
+        label: `Envoi (${unitPref === 'decimal' ? 'KB/s' : 'KiB/s'})`,
+        data: sentData,
+        borderColor: '#ff6b35',
+        backgroundColor: 'rgba(255, 107, 53, 0.1)',
+        tension: 0.4,
+        fill: true
+      },
+      {
+        label: `Réception (${unitPref === 'decimal' ? 'KB/s' : 'KiB/s'})`,
+        data: recvData,
+        borderColor: '#4ec9b0',
+        backgroundColor: 'rgba(78, 201, 176, 0.1)',
+        tension: 0.4,
+        fill: true
+      }
       ]
     },
     options: getChartOptions()
   });
 
-  // Interface Details
   try {
     const res = await fetch('/api/network');
     const interfaces = await res.json();
@@ -397,7 +502,9 @@ async function updateNetwork(filtered, latest) {
         container.innerHTML = '<div class="chart-header"><h3><i class="fas fa-list"></i> Détails Interfaces</h3></div><p style="padding: 20px; color: #9fa0a4;">Aucune interface réseau trouvée (hors loopback).</p>';
       }
     }
-  } catch (err) { console.error('Erreur interfaces réseau', err); }
+  } catch (err) {
+    console.error('Erreur interfaces réseau', err);
+  }
 }
 
 function updateUptime(filtered, latest) {
@@ -419,8 +526,6 @@ function updateUptime(filtered, latest) {
     circle.style.strokeDashoffset = circumference - progress * circumference;
   }
 }
-
-// --- NOUVELLES FONCTIONS (Scanner, Processus, Alertes, Logs) ---
 
 async function scanNetwork() {
   const btn = document.getElementById('scan-network-btn');
@@ -454,8 +559,11 @@ async function scanNetwork() {
       container.innerHTML = '<div class="empty-state"><p>Aucun appareil trouvé.</p></div>';
       status.textContent = 'Scan terminé. Aucun appareil trouvé.';
     }
-  } catch (err) { status.textContent = 'Erreur pendant le scan.'; }
-  btn.disabled = false; btn.innerHTML = '<i class="fas fa-search"></i> Scanner Réseau';
+  } catch (err) {
+    status.textContent = 'Erreur pendant le scan.';
+  }
+  btn.disabled = false;
+  btn.innerHTML = '<i class="fas fa-search"></i> Scanner Réseau';
 }
 
 function setProcessSort(sort) {
@@ -493,7 +601,9 @@ async function fetchProcesses() {
     } else {
       container.innerHTML = '<div class="empty-state"><p>Aucun processus trouvé.</p></div>';
     }
-  } catch (err) { console.error(err); }
+  } catch (err) {
+    console.error(err);
+  }
 }
 
 async function fetchAlerts() {
@@ -525,7 +635,9 @@ async function fetchAlerts() {
     } else {
       container.innerHTML = `<div class="empty-state"><i class="fas fa-check-circle" style="color:#4ec9b0;"></i><p>Système sain.</p></div>`;
     }
-  } catch (err) { console.error(err); }
+  } catch (err) {
+    console.error(err);
+  }
 }
 
 async function fetchLogs() {
@@ -548,10 +660,10 @@ async function fetchLogs() {
     } else {
       container.innerHTML = `<div class="empty-state"><p>${data.error || 'Aucun journal trouvé ou fichier vide. Vérifiez la config server.rb.'}</p></div>`;
     }
-  } catch (err) { console.error("Erreur fetch logs:", err); }
+  } catch (err) {
+    console.error("Erreur fetch logs:", err);
+  }
 }
-
-// --- Chart.js & Settings (Original) ---
 
 function updateChart(id, config) {
   const canvas = document.getElementById(id);
@@ -568,16 +680,43 @@ function updateChart(id, config) {
 
 function getChartOptions(extra = {}) {
   return {
-    responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { labels: { color: '#d8d9da', font: { size: 12 } } } },
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        labels: {
+          color: '#d8d9da',
+          font: {
+            size: 12
+          }
+        }
+      }
+    },
     scales: {
-      x: { ticks: { color: '#9fa0a4', maxRotation: 45, minRotation: 45 }, grid: { color: '#2a2b2f' } },
-      y: { ticks: { color: '#9fa0a4' }, grid: { color: '#2a2b2f' }, beginAtZero: true, ...extra }
+      x: {
+        ticks: {
+          color: '#9fa0a4',
+          maxRotation: 45,
+          minRotation: 45
+        },
+        grid: {
+          color: '#2a2b2f'
+        }
+      },
+      y: {
+        ticks: {
+          color: '#9fa0a4'
+        },
+        grid: {
+          color: '#2a2b2f'
+        },
+        beginAtZero: true,
+        ...extra
+      }
     }
   };
 }
 
-// Settings Logic
 function updateSettingsPage() {
   initPrefs();
   fetchDisks().then(devices => {
@@ -585,7 +724,8 @@ function updateSettingsPage() {
     if (!sel) return;
     sel.innerHTML = '';
     const def = document.createElement('option');
-    def.text = "Disque Principal OS (Défaut)"; def.value = "default";
+    def.text = "Disque Principal OS (Défaut)";
+    def.value = "default";
     const isDefaultSelected = !selectedDisk;
     def.selected = isDefaultSelected;
     sel.add(def);
@@ -615,8 +755,7 @@ function saveSettings() {
   if (sel.value !== 'default') {
     localStorage.setItem('selectedDisk', sel.value);
     selectedDisk = JSON.parse(sel.value);
-  }
-  else {
+  } else {
     localStorage.removeItem('selectedDisk');
     selectedDisk = null;
   }
@@ -634,31 +773,56 @@ function resetSettings() {
   location.reload();
 }
 
-// --- Point d'entrée pour le démarrage et la boucle ---
+async function fetchTickets() {
+  try {
+    const res = await fetch('/api/tickets');
+    const tickets = await res.json();
+    const container = document.getElementById('tickets-container');
+
+    if (tickets.length > 0) {
+      let html = '<table class="styled-table"><thead><tr><th>ID</th><th>Date</th><th>Niveau</th><th>Titre</th><th>Message</th><th>Statut</th></tr></thead><tbody>';
+      tickets.forEach(ticket => {
+        const levelClass = ticket.level === 'critical' ? 'critical' : 'warning';
+        const dateStr = new Date(ticket.timestamp * 1000).toLocaleString();
+        html += `<tr>
+            <td style="color:#9fa0a4;">#${ticket.id}</td>
+            <td>${dateStr}</td>
+            <td><span class="metric-badge ${levelClass}">${ticket.level}</span></td>
+            <td><strong>${ticket.title}</strong></td>
+            <td>${ticket.description}</td>
+            <td><span class="status-badge ${ticket.status === 'open' ? 'down' : 'up'}">${ticket.status.toUpperCase()}</span></td>
+        </tr>`;
+      });
+      html += '</tbody></table>';
+      container.innerHTML = html;
+    } else {
+      container.innerHTML = '<div class="empty-state"><p>Aucun ticket ouvert.</p></div>';
+    }
+  } catch (err) { console.error(err); }
+}
+
 function mainLoop() {
   if (['dashboard', 'cpu', 'memory', 'disk', 'network', 'uptime'].includes(currentPage)) fetchData();
   if (currentPage === 'processes') fetchProcesses();
   if (currentPage === 'alerts') fetchAlerts();
-  if (currentPage === 'logs') fetchLogs(); // NOUVEAU
+  if (currentPage === 'tickets') fetchTickets();
+  if (currentPage === 'logs') fetchLogs();
 }
 
-document.getElementById('export-json')?.addEventListener('click', () => { window.location.href = '/api/system'; });
+document.getElementById('export-json')?.addEventListener('click', () => {
+  window.location.href = '/api/system';
+});
 
-// --- Start: Lancement après chargement complet du DOM ---
 document.addEventListener('DOMContentLoaded', () => {
   initPrefs();
   initNav();
 
-  // Charger la page Settings au démarrage pour initialiser les écouteurs de sauvegarde/reset
   updateSettingsPage();
 
-  // Démarre sur le dashboard
   switchPage('dashboard');
   const rate = parseInt(localStorage.getItem('refreshRate') || '5000');
 
-  // Démarrer la boucle de rafraîchissement
   intervalID = setInterval(mainLoop, rate);
 
-  // Premier fetch immédiat
   fetchData();
 });

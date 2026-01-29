@@ -1,5 +1,2 @@
-# config.ru
-
-require './server.rb'
-
+require './app.rb'
 run Sinatra::Application
