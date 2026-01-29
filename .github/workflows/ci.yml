@@ -32,8 +32,6 @@ jobs:
       important_changes: ${{ steps.filter.outputs.important }}
     steps:
       - uses: actions/checkout@v4
-
-      # Détection des changements dans les fichiers critiques
       - uses: dorny/paths-filter@v3
         id: filter
         with:
@@ -43,7 +41,6 @@ jobs:
               - 'deploy.sh'
               - 'install_service.sh'
               - 'public/**'
-
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.2'
@@ -55,16 +52,18 @@ jobs:
 
   create-tag:
     needs: deploy-test
-    # Création du tag uniquement si changement important sur la branche principale
     if: github.ref == 'refs/heads/master' && needs.deploy-test.outputs.important_changes == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    outputs:
+      new_tag: ${{ steps.tag_step.outputs.NEW_TAG }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Create and Push Tag
+        id: tag_step
         run: |
           git fetch --tags
           LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
@@ -72,9 +71,37 @@ jobs:
           IFS='.' read -r major minor patch <<< "$VERSION"
           NEW_PATCH=$((patch + 1))
           NEW_TAG="v$major.$minor.$NEW_PATCH"
+          echo "NEW_TAG=$NEW_TAG" >> $GITHUB_OUTPUT
           
-          echo "Version update: $LATEST_TAG -> $NEW_TAG"
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           git tag $NEW_TAG
           git push origin $NEW_TAG
+
+  notify-clients:
+    needs: create-tag
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Mail
+        uses: dawidd6/action-send-mail@v3
+        with:
+          # Configuration SMTP (Gmail conseillé)
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: "Nouvelle version Mac-Monitor disponible : ${{ needs.create-tag.outputs.new_tag }}"
+          to: luka.salvo23@gmail.com
+          from: "Mac-Monitor Auto-Deploy <noreply@github.com>"
+          body: |
+            Hello Luka,
+
+            Une nouvelle version de Mac-Monitor (${{ needs.create-tag.outputs.new_tag }}) vient d'être publiée avec succès !
+
+            Modifications détectées dans : app.rb, public/ ou les scripts de service.
+            
+            Pour mettre à jour ton instance locale :
+            1. git pull
+            2. ./deploy.sh
+
+            Bon monitoring !
