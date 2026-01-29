@@ -2,9 +2,9 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main ] # On s'assure que c'est bien main ici
   pull_request:
-    branches: [ main, master ]
+    branches: [ main ]
 
 jobs:
   security-audit:
@@ -23,36 +23,37 @@ jobs:
 
   deploy-test:
     needs: security-audit
-    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+    # CHANGEMENT ICI : refs/heads/main au lieu de master
+    if: github.ref == 'refs/heads/main'
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     outputs:
-      important_changes: ${{ steps.filter.outputs.important }}
+      public_changes: ${{ steps.filter.outputs.public_only }}
     steps:
       - uses: actions/checkout@v4
+      
       - uses: dorny/paths-filter@v3
         id: filter
         with:
           filters: |
-            important:
-              - 'app.rb'
-              - 'deploy.sh'
-              - 'install_service.sh'
+            public_only:
               - 'public/**'
+
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.2'
           bundler-cache: true
-      - name: Run Deployment Script (Test Mode)
+      - name: Run Deployment Script
         run: |
           chmod +x ./deploy.sh
           ./deploy.sh
 
   create-tag:
     needs: deploy-test
-    if: github.ref == 'refs/heads/master' && needs.deploy-test.outputs.important_changes == 'true'
+    # CHANGEMENT ICI : refs/heads/main
+    if: github.ref == 'refs/heads/main' && needs.deploy-test.outputs.public_changes == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -85,23 +86,13 @@ jobs:
       - name: Send Mail
         uses: dawidd6/action-send-mail@v3
         with:
-          # Configuration SMTP (Gmail conseillé)
           server_address: smtp.gmail.com
           server_port: 465
           username: ${{ secrets.MAIL_USERNAME }}
           password: ${{ secrets.MAIL_PASSWORD }}
-          subject: "Nouvelle version Mac-Monitor disponible : ${{ needs.create-tag.outputs.new_tag }}"
+          subject: "Mise à jour Mac-Monitor : ${{ needs.create-tag.outputs.new_tag }}"
           to: luka.salvo23@gmail.com
-          from: "Mac-Monitor Auto-Deploy <noreply@github.com>"
+          from: "GitHub Actions <noreply@github.com>"
           body: |
             Hello Luka,
-
-            Une nouvelle version de Mac-Monitor (${{ needs.create-tag.outputs.new_tag }}) vient d'être publiée avec succès !
-
-            Modifications détectées dans : app.rb, public/ ou les scripts de service.
-            
-            Pour mettre à jour ton instance locale :
-            1. git pull
-            2. ./deploy.sh
-
-            Bon monitoring !
+            Version ${{ needs.create-tag.outputs.new_tag }} créée suite à une modif dans /public.
