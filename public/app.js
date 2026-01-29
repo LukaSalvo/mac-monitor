@@ -827,37 +827,65 @@ document.addEventListener('DOMContentLoaded', () => {
   fetchData();
 });
 
-// --- AJOUT DANS app.js ---
+// --- FONCTION DE VÉRIFICATION DES MISES À JOUR ---
 async function checkUpdates() {
   try {
     const res = await fetch('/api/check_update');
+    if (!res.ok) return; // Évite les logs d'erreurs si la route n'est pas encore prête
     const data = await res.json();
 
     if (data.update_available) {
+      // Vérifie si la bannière n'existe pas déjà
+      if (document.getElementById('update-banner')) return;
+
       const banner = document.createElement('div');
+      banner.id = 'update-banner';
       banner.style.cssText = `
         background: #ff6b35;
         color: white;
-        padding: 10px;
+        padding: 12px;
         text-align: center;
         font-weight: bold;
         position: sticky;
         top: 0;
-        z-index: 9999;
+        z-index: 10001;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        font-family: sans-serif;
       `;
-      banner.innerHTML = `<i class="fas fa-cloud-download-alt"></i> Une nouvelle version (${data.remote}) est disponible ! Veuillez faire un <code>git pull</code> et <code>./deploy.sh</code>`;
+      banner.innerHTML = `
+        <i class="fas fa-cloud-download-alt"></i> 
+        Une nouvelle version <span style="text-decoration: underline;">${data.remote}</span> est disponible ! 
+        Lancez <code>git pull</code> & <code>./deploy.sh</code> pour mettre à jour.
+        <button onclick="this.parentElement.remove()" style="margin-left:15px; background:transparent; border:1px solid white; color:white; border-radius:4px; cursor:pointer; padding:2px 8px;">Ignorer</button>
+      `;
       document.body.prepend(banner);
     }
   } catch (e) {
-    console.log("Impossible de vérifier les mises à jour");
+    console.log("Vérification maj : serveur non prêt.");
   }
 }
 
-// Appelle la fonction dans ton DOMContentLoaded
+// --- INITIALISATION UNIQUE ---
 document.addEventListener('DOMContentLoaded', () => {
-  // ... tes autres fonctions ...
+  // 1. Charger les préférences utilisateur
+  initPrefs();
+
+  // 2. Initialiser la navigation
+  initNav();
+
+  // 3. Préparer la page des paramètres (chargement des disques)
+  updateSettingsPage();
+
+  // 4. Afficher le Dashboard par défaut
+  switchPage('dashboard');
+
+  // 5. Lancer la boucle de rafraîchissement
+  const rate = parseInt(localStorage.getItem('refreshRate') || '5000');
+  intervalID = setInterval(mainLoop, rate);
+
+  // 6. Premier chargement des données
+  fetchData();
+
+  // 7. Vérifier les mises à jour GitHub (Nouveau)
   checkUpdates();
 });
-
-//test 
-//test 2
