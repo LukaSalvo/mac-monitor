@@ -1,0 +1,7 @@
+app.log
+server.log
+.env
+.bundle
+vendor
+
+
