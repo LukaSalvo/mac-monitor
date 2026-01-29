@@ -1,34 +1,44 @@
-name: Dependency & Security Check
+name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main, master, develop ]
   pull_request:
     branches: [ main, master ]
   schedule:
-    # Planification : tous les lundis à 8h00
     - cron: '0 8 * * 1'
 
 jobs:
-  check-dependencies:
+  # ÉTAPE 1 : Audit (S'exécute pour tout le monde)
+  security-audit:
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+      - name: Security Check
+        run: |
+          gem install bundler-audit
+          bundle-audit update
+          bundle-audit check
+
+  # ÉTAPE 2 : Déploiement (Uniquement sur MASTER après succès de l'audit)
+  deploy:
+    needs: security-audit # Ne déploie pas si le scan de sécurité échoue
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+    
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest] # Créé deux jobs en parallèle
+    
+    runs-on: ${{ matrix.os }}
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Set up Ruby
-      uses: ruby/setup-ruby@v1
-      with:
-        ruby-version: '3.2' # À ajuster selon votre version
-        bundler-cache: true
-
-    - name: Check for outdated gems
-      run: |
-        bundle outdated || echo "Certaines gems ne sont pas à jour."
-
-    - name: Security Audit
-      run: |
-        gem install bundler-audit
-        bundle-audit update
-        bundle-audit check || echo "Vulnérabilités détectées dans les dépendances."
+      - uses: actions/checkout@v4
+      
+      - name: Deploy to ${{ matrix.os }}
+        run: |
+          chmod +x ./deploy.sh
+          ./deploy.sh
