@@ -827,5 +827,37 @@ document.addEventListener('DOMContentLoaded', () => {
   fetchData();
 });
 
+// --- AJOUT DANS app.js ---
+async function checkUpdates() {
+  try {
+    const res = await fetch('/api/check_update');
+    const data = await res.json();
+
+    if (data.update_available) {
+      const banner = document.createElement('div');
+      banner.style.cssText = `
+        background: #ff6b35;
+        color: white;
+        padding: 10px;
+        text-align: center;
+        font-weight: bold;
+        position: sticky;
+        top: 0;
+        z-index: 9999;
+      `;
+      banner.innerHTML = `<i class="fas fa-cloud-download-alt"></i> Une nouvelle version (${data.remote}) est disponible ! Veuillez faire un <code>git pull</code> et <code>./deploy.sh</code>`;
+      document.body.prepend(banner);
+    }
+  } catch (e) {
+    console.log("Impossible de vérifier les mises à jour");
+  }
+}
+
+// Appelle la fonction dans ton DOMContentLoaded
+document.addEventListener('DOMContentLoaded', () => {
+  // ... tes autres fonctions ...
+  checkUpdates();
+});
+
 //test 
 //test 2

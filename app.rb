@@ -6,6 +6,7 @@ require 'rexml/document'
 # require 'pony'
 require 'rbconfig'
 require 'etc'
+require 'net/http'
 
 require_relative 'lib/system_monitor'
 require_relative 'lib/network_monitor'
@@ -24,6 +25,49 @@ HISTORY = []
 MAX_HISTORY = 3600
 LOG_FILE = File.expand_path('app.log', __dir__)
 NMAP_PATH = "/usr/bin/nmap"
+
+
+
+
+# --- AJOUT AU DÉBUT DU FICHIER app.rb ---
+
+# Récupère la version locale via Git
+def get_local_version
+  `git describe --tags --abbrev=0 2>/dev/null`.strip || "v1.0.0"
+end
+
+# Vérifie la dernière version sur GitHub
+def check_github_version
+  repo = "https://github.com/LukaSalvo/mac-monitor" 
+  uri = URI("https://api.github.com/repos/#{repo}/tags")
+  
+  http = Net::HTTP.new(uri.host, uri.port)
+  http.use_ssl = true
+  request = Net::HTTP::Get.new(uri)
+  request['User-Agent'] = 'Ruby-Version-Checker' # Requis par l'API GitHub
+  
+  response = http.request(request)
+  return nil unless response.code == '200'
+  
+  tags = JSON.parse(response.body)
+  tags.empty? ? nil : tags[0]['name']
+rescue
+  nil
+end
+
+# Route API pour le Frontend
+get '/api/check_update' do
+  content_type :json
+  local = get_local_version
+  remote = check_github_version
+  
+  {
+    local: local,
+    remote: remote,
+    update_available: (remote && remote != local)
+  }.to_json
+end
+
 
 get '/' do
   send_file File.join(settings.public_folder, 'index.html')

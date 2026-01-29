@@ -2,7 +2,7 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main ] # On s'assure que c'est bien main ici
+    branches: [ main ]
   pull_request:
     branches: [ main ]
 
@@ -23,22 +23,25 @@ jobs:
 
   deploy-test:
     needs: security-audit
-    # CHANGEMENT ICI : refs/heads/main au lieu de master
     if: github.ref == 'refs/heads/main'
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     outputs:
-      public_changes: ${{ steps.filter.outputs.public_only }}
+      important_changes: ${{ steps.filter.outputs.important }}
     steps:
       - uses: actions/checkout@v4
       
+      # Filtre élargi : détecte les changements dans le code, le service et les assets
       - uses: dorny/paths-filter@v3
         id: filter
         with:
           filters: |
-            public_only:
+            important:
+              - 'app.rb'
+              - 'deploy.sh'
+              - 'install_service.sh'
               - 'public/**'
 
       - uses: ruby/setup-ruby@v1
@@ -52,13 +55,11 @@ jobs:
 
   create-tag:
     needs: deploy-test
-    # CHANGEMENT ICI : refs/heads/main
-    if: github.ref == 'refs/heads/main' && needs.deploy-test.outputs.public_changes == 'true'
+    # Déclenchement si modif détectée dans les fichiers importants sur la branche main
+    if: github.ref == 'refs/heads/main' && needs.deploy-test.outputs.important_changes == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    outputs:
-      new_tag: ${{ steps.tag_step.outputs.NEW_TAG }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -72,27 +73,9 @@ jobs:
           IFS='.' read -r major minor patch <<< "$VERSION"
           NEW_PATCH=$((patch + 1))
           NEW_TAG="v$major.$minor.$NEW_PATCH"
-          echo "NEW_TAG=$NEW_TAG" >> $GITHUB_OUTPUT
           
+          echo "Version update: $LATEST_TAG -> $NEW_TAG"
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           git tag $NEW_TAG
           git push origin $NEW_TAG
-
-  notify-clients:
-    needs: create-tag
-    runs-on: ubuntu-latest
-    steps:
-      - name: Send Mail
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.gmail.com
-          server_port: 465
-          username: ${{ secrets.MAIL_USERNAME }}
-          password: ${{ secrets.MAIL_PASSWORD }}
-          subject: "Mise à jour Mac-Monitor : ${{ needs.create-tag.outputs.new_tag }}"
-          to: luka.salvo23@gmail.com
-          from: "GitHub Actions <noreply@github.com>"
-          body: |
-            Hello Luka,
-            Version ${{ needs.create-tag.outputs.new_tag }} créée suite à une modif dans /public.
