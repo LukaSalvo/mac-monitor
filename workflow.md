@@ -1,62 +1,32 @@
-# Documentation CI/CD - Mac Monitor
+#  GitHub Actions Workflow: Mac-Monitor CI/CD
 
-Ce document detaille le fonctionnement de la pipeline d'integration et de deploiement continu mise en place pour le projet.
+Ce dépôt utilise un workflow automatisé pour garantir la stabilité de l'application et gérer intelligemment les versions du logiciel tournant en local.
 
-## Architecture du Workflow
+##  Cycle de Vie de la Pipeline
 
-Le fichier de configuration se trouve dans .github/workflows/ci.yml. Il automatise la surveillance du code via deux etapes distinctes.
+La pipeline se déclenche à chaque **Push** ou **Pull Request** sur la branche principale `main`. Elle est divisée en trois étapes clés :
 
-### 1. Audit de Securite (Job: security-audit)
-Ce job s'execute sur Ubuntu (Linux). Il utilise l'outil bundler-audit pour :
-- Mettre a jour la base de donnees des vulnerabilites CVE (Common Vulnerabilities and Exposures).
-- Analyser le fichier Gemfile.lock.
-- Bloquer la suite du workflow si une dependance presente une faille critique.
+### 1. Audit de Sécurité (`security-audit`)
+* Utilise `bundler-audit` pour scanner les dépendances Ruby (Gems).
+* Vérifie la présence de vulnérabilités connues dans les bibliothèques utilisées.
+* Bloque la suite du processus si une faille critique est détectée.
 
-### 2. Test de Deploiement (Job: deploy-test)
-Ce job utilise une strategie de matrice pour tester l'application simultanement sur :
-- Ubuntu (Linux)
-- macOS (Darwin)
+### 2. Test de Déploiement (`deploy-test`)
+* Simule l'exécution du script `deploy.sh` sur deux environnements : **Ubuntu** et **macOS**.
+* Vérifie que le serveur Sinatra démarre correctement et répond avec un code `HTTP 200`.
+* Utilise un filtre (`paths-filter`) pour détecter si des fichiers importants ont été modifiés (`app.rb`, `deploy.sh`, `install_service.sh` ou le dossier `/public`).
 
-Il ne s'execute que sur les branches main ou master et necessite la reussite de l'audit de securite.
+### 3. Création Automatique de Tag (`create-tag`)
+* Cette étape s'active uniquement si les tests précédents réussissent et que des fichiers importants ont été touchés.
+* **Logique de Versioning** : 
+    * Récupère le dernier tag existant (ex: `v1.0.4`).
+    * Incrémente automatiquement le numéro de correctif (Patch) pour créer la version suivante (ex: `v1.0.5`).
+    * Pousse le nouveau tag sur le dépôt GitHub.
 
+## 📊 Avantages pour l'Utilisateur
+* **Alerte de Mise à jour** : L'application locale compare son tag Git avec le dernier tag publié sur GitHub via l'API.
+* **Transparence** : Chaque modification du code génère un point de restauration officiel (Tag).
+* **Fiabilité** : Impossible de pousser un code qui ne démarre pas sur macOS ou Linux.
 
-
-## Fonctionnement du script deploy.sh
-
-Le script deploy.sh contient la logique de gestion du serveur. Il est conçu pour etre compatible avec les deux systemes d'exploitation et distingue l'environnement local de l'environnement GitHub Actions.
-
-### Logique de detection du systeme
-- Sur macOS : Utilise la commande lsof pour verifier la disponibilite des ports.
-- Sur Linux : Utilise la commande ss pour verifier la disponibilite des ports.
-
-### Logique d'environnement (Variable GITHUB_ACTIONS)
-- Mode CI : Le serveur est lance en arriere-plan. Un test de connectivite via curl est effectue. Si l'application repond avec un code HTTP 200, le serveur est eteint et le test est valide.
-- Mode Local : Le serveur est lance au premier plan de maniere persistante pour permettre le developpement.
-
-## Installation et Utilisation
-
-### Prerequis
-- Ruby 3.2
-- Bundler
-- Permissions d'execution sur le script
-
-### Commandes
-Pour initialiser les permissions du script :
-chmod +x deploy.sh
-
-Pour executer le script localement :
-./deploy.sh
-
-## Maintenance et Debugging
-
-En cas d'echec du workflow sur GitHub Actions :
-1. Consulter l'onglet Actions du depot.
-2. Si le job deploy-test echoue, les logs du serveur sont affiches dans la console via la lecture du fichier server.log.
-3. Verifier la compatibilite des Gems natives (extensions C) entre Linux et macOS.
-
-
-
-
-
-
-
+---
+*Note : Le workflow nécessite les permissions "Read and Write" activées dans les réglages du dépôt pour pouvoir créer les tags automatiquement.*
