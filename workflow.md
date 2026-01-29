@@ -53,3 +53,10 @@ En cas d'echec du workflow sur GitHub Actions :
 1. Consulter l'onglet Actions du depot.
 2. Si le job deploy-test echoue, les logs du serveur sont affiches dans la console via la lecture du fichier server.log.
 3. Verifier la compatibilite des Gems natives (extensions C) entre Linux et macOS.
+
+
+
+
+
+
+
