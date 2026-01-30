@@ -2,11 +2,21 @@ GEM
   remote: https://rubygems.org/
   specs:
     base64 (0.3.0)
+    date (3.5.1)
     mail (2.7.1)
       mini_mime (>= 0.1.1)
     mini_mime (1.1.5)
     mustermann (3.0.4)
       ruby2_keywords (~> 0.0.1)
+    net-imap (0.3.9)
+      date
+      net-protocol
+    net-pop (0.1.2)
+      net-protocol
+    net-protocol (0.2.2)
+      timeout
+    net-smtp (0.5.1)
+      net-protocol
     nio4r (2.7.5)
     puma (6.6.1)
       nio4r (~> 2.0)
@@ -25,6 +35,7 @@ GEM
       rack-protection (= 3.2.0)
       tilt (~> 2.0)
     tilt (2.7.0)
+    timeout (0.6.0)
     webrick (1.9.2)
 
 PLATFORMS
@@ -32,6 +43,9 @@ PLATFORMS
 
 DEPENDENCIES
   mail (~> 2.7.1)
+  net-imap
+  net-pop
+  net-smtp
   puma
   rackup
   rexml

@@ -10,3 +10,8 @@ gem 'rackup'
 # gem 'pony'  # Removed (Switched to Discord Webhook)
 gem 'rexml' # Pour le parsing XML de Nmap (correction du LoadError)
 gem 'mail', '~> 2.7.1'  # Pour les notifications email (compatible Ruby 2.6)
+
+# Gems requises pour Ruby 3.1+ (net-smtp n'est plus inclus par défaut)
+gem 'net-smtp', require: false
+gem 'net-imap', require: false
+gem 'net-pop', require: false
