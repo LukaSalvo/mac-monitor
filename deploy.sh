@@ -28,8 +28,7 @@ if ! command -v ruby &> /dev/null; then
         echo "  brew install ruby"
     elif [[ "$OS" == "Linux" ]]; then
         echo "Installation recommandée:"
-        echo "  sudo apt install ruby ruby-dev build-essential  # Ubuntu/Debian"
-        echo "  sudo dnf install ruby ruby-devel gcc make       # Fedora/RHEL"
+        echo "  sudo apt install ruby ruby-dev build-essential"
     fi
     exit 1
 fi
@@ -41,53 +40,26 @@ echo "💎 Ruby version: $RUBY_VERSION"
 RUBY_MAJOR=$(echo $RUBY_VERSION | cut -d. -f1)
 RUBY_MINOR=$(echo $RUBY_VERSION | cut -d. -f2)
 
-echo ""
-
-# Nettoyage si Ruby 4.0+ ou si problème de bundler
+# Nettoyage si Ruby 3.2+ ou 4.0+
 if [[ $RUBY_MAJOR -ge 4 ]] || [[ $RUBY_MAJOR -eq 3 && $RUBY_MINOR -ge 2 ]]; then
-    echo "⚠️  Ruby $RUBY_VERSION détecté (3.2+ ou 4.0+)"
     echo "🧹 Nettoyage du cache vendor pour éviter les conflits..."
     rm -rf vendor/bundle .bundle
-    
-    # Supprimer Gemfile.lock pour forcer la régénération avec Bundler moderne
-    if [[ -f "Gemfile.lock" ]]; then
-        echo "🗑️  Suppression de Gemfile.lock (régénération avec Bundler $BUNDLER_VERSION)..."
-        rm -f Gemfile.lock
-    fi
-    
-    echo "✅ Cache nettoyé"
-    echo ""
+    rm -f Gemfile.lock
 fi
 
 # Installation/Mise à jour de Bundler
-echo "📦 Vérification de Bundler..."
 if ! command -v bundle &> /dev/null; then
-    echo "Installation de Bundler..."
     gem install bundler
 else
-    BUNDLER_VERSION=$(bundle -v | awk '{print $3}')
-    echo "Bundler version: $BUNDLER_VERSION"
-    
-    # Mise à jour si version trop ancienne
     if [[ $RUBY_MAJOR -ge 4 ]]; then
-        echo "Mise à jour de Bundler pour Ruby 4.0+..."
         gem install bundler
     fi
 fi
 
-echo ""
-
-# Configuration email.yml si manquant
+# Configuration email.yml
 if [[ ! -f "config/email.yml" ]]; then
-    echo "⚠️  Fichier config/email.yml manquant"
     if [[ -f "config/email.yml.example" ]]; then
-        echo "📋 Copie du template..."
         cp config/email.yml.example config/email.yml
-        echo "✅ Fichier créé: config/email.yml"
-        echo ""
-    else
-        echo "❌ Template config/email.yml.example introuvable !"
-        exit 1
     fi
 fi
 
@@ -100,30 +72,15 @@ echo ""
 echo "✅ Installation terminée !"
 echo ""
 
-# Démarrage du serveur
-echo "🚀 Démarrage du serveur sur http://0.0.0.0:3000"
-echo "   (Accessible depuis le réseau local)"
-echo ""
-echo "Appuyez sur Ctrl+C pour arrêter"
-echo ""
-
-bundle exec rackup -p 3000 --host 0.0.0.0
-
-
-
-echo "✅ Installation terminée !"
-echo ""
-
-# Vérification si nous sommes dans une Pipeline CI (GitHub Actions)
+# --- BLOC CRITIQUE POUR LA PIPELINE ---
+# Si nous sommes sur GitHub Actions, on s'arrête ici.
 if [[ "$GITHUB_ACTIONS" == "true" ]]; then
     echo "✅ Test de déploiement réussi (Mode CI détecté)."
     exit 0
 fi
 
-# Démarrage du serveur (Mode Local uniquement)
+# Démarrage du serveur (Uniquement en local sur ton Mac)
 echo "🚀 Démarrage du serveur sur http://0.0.0.0:3000"
-echo "   (Accessible depuis le réseau local)"
-echo ""
 echo "Appuyez sur Ctrl+C pour arrêter"
 echo ""
 
