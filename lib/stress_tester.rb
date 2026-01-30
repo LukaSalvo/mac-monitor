@@ -26,7 +26,7 @@ module StressTester
           memory_stress
           
           # Log Stress: Génération d'erreurs
-          log_stress
+          generate_error_logs
           
           sleep 2  # Pause entre les cycles
         end
