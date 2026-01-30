@@ -34,7 +34,10 @@ NMAP_PATH = "/usr/bin/nmap"
 
 # Récupère la version locale via Git
 def get_local_version
-  `git describe --tags --abbrev=0 2>/dev/null`.strip || "v1.0.0"
+  # On force un fetch des tags silencieux avant de demander la version
+  `git fetch --tags > /dev/null 2>&1` 
+  version = `git describe --tags --abbrev=0 2>/dev/null`.strip
+  version.empty? ? "v1.0.0" : version
 end
 
 # Vérifie la dernière version sur GitHub

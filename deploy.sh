@@ -19,6 +19,12 @@ fi
 
 echo "📍 OS détecté: $OS"
 
+# Au début de deploy.sh, après la détection de l'OS
+if [ -d ".git" ]; then
+    echo "🔄 Synchronisation des versions avec GitHub..."
+    git fetch --tags --quiet
+fi
+
 # Vérification de Ruby
 if ! command -v ruby &> /dev/null; then
     echo "❌ Ruby n'est pas installé !"

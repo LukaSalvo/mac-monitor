@@ -923,19 +923,7 @@ document.getElementById('export-json')?.addEventListener('click', () => {
   window.location.href = '/api/system';
 });
 
-document.addEventListener('DOMContentLoaded', () => {
-  initPrefs();
-  initNav();
 
-  updateSettingsPage();
-
-  switchPage('dashboard');
-  const rate = parseInt(localStorage.getItem('refreshRate') || '5000');
-
-  intervalID = setInterval(mainLoop, rate);
-
-  fetchData();
-});
 
 // --- FONCTION DE VÉRIFICATION DES MISES À JOUR ---
 async function checkUpdates() {
@@ -977,27 +965,16 @@ async function checkUpdates() {
 
 // --- INITIALISATION UNIQUE ---
 document.addEventListener('DOMContentLoaded', () => {
-  // 1. Charger les préférences utilisateur
   initPrefs();
-
-  // 2. Initialiser la navigation
   initNav();
-
-  // 3. Préparer la page des paramètres (chargement des disques)
   updateSettingsPage();
-
-  // 4. Afficher le Dashboard par défaut
   switchPage('dashboard');
-
-  // 5. Lancer la boucle de rafraîchissement
+  
   const rate = parseInt(localStorage.getItem('refreshRate') || '5000');
   intervalID = setInterval(mainLoop, rate);
 
-  // 6. Premier chargement des données
   fetchData();
-
-  // 7. Vérifier les mises à jour GitHub (Nouveau)
-  checkUpdates();
+  checkUpdates(); // Appel unique ici
 });
 
 
