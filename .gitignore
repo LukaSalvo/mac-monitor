@@ -3,4 +3,7 @@ server.log
 .env
 .bundle
 vendor
+
+# Data files (runtime, not code)
+data/
 config/email.yml
