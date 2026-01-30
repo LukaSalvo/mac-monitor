@@ -50,10 +50,7 @@ module TicketStore
     save(tickets)
     
     # Envoi de notification email
-   unless new_ticket[:title].start_with?("Rapport quotidien") || new_ticket[:level] == "info"
-  notify_ticket_created(new_ticket)
-end
-
+    notify_ticket_created(new_ticket)
     
     new_ticket
   end
@@ -82,6 +79,7 @@ def upsert(title, description, level = 'info', fingerprint: nil)
     ticket[:level] = level if more_severe?(level, ticket[:level])
 
     # On ré-ouvre si c'était fermé
+    was_closed = (ticket[:status] == 'closed')
     ticket[:status] = 'open'
     ticket.delete(:closed_at)
 
@@ -93,6 +91,12 @@ def upsert(title, description, level = 'info', fingerprint: nil)
     end
 
     save(tickets)
+    
+    # Notifier si le ticket vient d'être réouvert
+    if was_closed
+      notify_ticket_created(ticket)
+    end
+    
     ticket
   else
     create(title, description, level, fingerprint: fingerprint)
