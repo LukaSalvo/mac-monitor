@@ -1,5 +1,16 @@
 [
   {
+    "id": "17c65248-f479-4354-b2c3-9687dac34620",
+    "first_seen": 1769760618,
+    "last_seen": 1769760618,
+    "title": "Log Warning",
+    "description": "[2026-01-30 09:10:18 +0100] WARNING: High resource usage detected during stress test",
+    "level": "warning",
+    "status": "open",
+    "occurrences": 1,
+    "fingerprint": null
+  },
+  {
     "id": "12753306-5e0a-4b4c-85c3-6f5d5773b826",
     "first_seen": 1769760567,
     "last_seen": 1769760567,
