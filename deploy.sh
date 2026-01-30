@@ -100,7 +100,13 @@ echo ""
 echo "✅ Installation terminée !"
 echo ""
 
-# Démarrage du serveur
+# Démarrage du serveur (sauf en CI/CD)
+if [[ "$GITHUB_ACTIONS" == "true" ]] || [[ "$CI" == "true" ]]; then
+    echo "🤖 Mode CI/CD détecté - Installation réussie !"
+    echo "✅ Le serveur ne sera pas lancé (environnement de test)"
+    exit 0
+fi
+
 echo "🚀 Démarrage du serveur sur http://0.0.0.0:3000"
 echo "   (Accessible depuis le réseau local)"
 echo ""
