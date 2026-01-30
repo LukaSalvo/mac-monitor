@@ -43,3 +43,43 @@ sudo ./install_service.sh
 - `lib/` : Logique modulaire (`SystemMonitor`, `NetworkMonitor`, `AlertManager`).
 - `public/` : Interface Frontend (HTML/JS).
 - `deploy.sh` : Script d'installation et lancement.
+
+---
+
+## 🤖 Automatisation Avancée (notifications Mail + Discord)
+
+### Fonctionnalités
+- **Notifications Email** : Envoi automatique via Gmail SMTP lors de création de tickets
+- **Notifications Discord** : Webhooks colorés
+- **Stress Test** : Simulation de charge système (CPU, RAM, logs) avec contrôles Start/Stop
+
+### Configuration
+
+1. **Copier le template de configuration** :
+   ```bash
+   cp config/email.yml.example config/email.yml
+   ```
+
+2. **Éditer `config/email.yml`** avec vos credentials :
+   - **Gmail** : Créer un App Password (https://myaccount.google.com/apppasswords)
+   - **Discord** : Créer un webhook dans les paramètres du channel
+
+### Fichiers créés
+- `lib/notifier.rb` : Module Email + Discord
+- `lib/stress_tester.rb` : Simulation de charge
+- `config/email.yml.example` : Template de configuration
+- `test/test_email.rb` / `test/test_discord.rb` : Scripts de test
+
+### Fichiers modifiés
+- `Gemfile` : Ajout gem `mail`
+- `lib/ticket_store.rb` : Hook notifications automatiques
+- `app.rb` : API stress test (`/api/stress-test/*`)
+- `public/index.html` : Boutons stress test
+- `public/app.js` : Logique frontend
+
+### Test rapide
+```bash
+bundle exec rackup -p 3000
+# Aller dans Alertes → Démarrer Stress Test
+# Vérifier Gmail et Discord
+```

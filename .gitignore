@@ -3,5 +3,4 @@ server.log
 .env
 .bundle
 vendor
-
-
+config/email.yml

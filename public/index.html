@@ -441,6 +441,27 @@
           </div>
         </div>
       </div>
+      
+      <!-- Stress Test Controls -->
+      <div class="chart-card full-width">
+        <div class="chart-header">
+          <h3><i class="fas fa-flask"></i> Stress Test Système</h3>
+        </div>
+        <div class="action-bar" style="padding: 20px;">
+          <button id="stress-start-btn" class="btn-action"><i class="fas fa-play"></i> Démarrer Stress Test</button>
+          <button id="stress-stop-btn" class="btn-action" style="background: #e74c3c;" disabled><i class="fas fa-stop"></i> Arrêter Stress Test</button>
+          <span id="stress-status" class="scan-status">Prêt à tester</span>
+        </div>
+        <div style="padding: 0 20px 20px 20px;">
+          <div class="alert-box" style="margin-top: 10px;">
+            <i class="fas fa-info-circle"></i>
+            <div>
+              <strong>À propos du Stress Test</strong>
+              <p>Ce test simule une charge élevée sur le système (CPU, RAM, Logs) pour vérifier le fonctionnement des alertes et notifications email.</p>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div id="tickets-page" class="page">

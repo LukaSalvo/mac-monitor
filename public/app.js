@@ -55,6 +55,10 @@ function initNav() {
   document.getElementById('sort-mem-btn')?.addEventListener('click', () => setProcessSort('mem'));
   document.getElementById('refresh')?.addEventListener('click', () => fetchData(true));
   document.getElementById('interval')?.addEventListener('change', () => fetchData());
+
+  // Stress Test Controls
+  document.getElementById('stress-start-btn')?.addEventListener('click', startStressTest);
+  document.getElementById('stress-stop-btn')?.addEventListener('click', stopStressTest);
 }
 
 function switchPage(page) {
@@ -799,6 +803,66 @@ async function fetchTickets() {
       container.innerHTML = '<div class="empty-state"><p>Aucun ticket ouvert.</p></div>';
     }
   } catch (err) { console.error(err); }
+}
+
+// Stress Test Functions
+async function startStressTest() {
+  const startBtn = document.getElementById('stress-start-btn');
+  const stopBtn = document.getElementById('stress-stop-btn');
+  const status = document.getElementById('stress-status');
+
+  startBtn.disabled = true;
+  startBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Démarrage...';
+
+  try {
+    const res = await fetch('/api/stress-test/start', { method: 'POST' });
+    const data = await res.json();
+
+    if (data.success) {
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+      status.textContent = '⚡ Stress test en cours...';
+      status.style.color = '#ff6b35';
+      startBtn.innerHTML = '<i class="fas fa-play"></i> Démarrer Stress Test';
+    } else {
+      status.textContent = '❌ ' + data.message;
+      startBtn.disabled = false;
+      startBtn.innerHTML = '<i class="fas fa-play"></i> Démarrer Stress Test';
+    }
+  } catch (err) {
+    status.textContent = '❌ Erreur de connexion';
+    startBtn.disabled = false;
+    startBtn.innerHTML = '<i class="fas fa-play"></i> Démarrer Stress Test';
+  }
+}
+
+async function stopStressTest() {
+  const startBtn = document.getElementById('stress-start-btn');
+  const stopBtn = document.getElementById('stress-stop-btn');
+  const status = document.getElementById('stress-status');
+
+  stopBtn.disabled = true;
+  stopBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Arrêt...';
+
+  try {
+    const res = await fetch('/api/stress-test/stop', { method: 'POST' });
+    const data = await res.json();
+
+    if (data.success) {
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+      status.textContent = '✅ Stress test arrêté';
+      status.style.color = '#4ec9b0';
+      stopBtn.innerHTML = '<i class="fas fa-stop"></i> Arrêter Stress Test';
+    } else {
+      status.textContent = '❌ ' + data.message;
+      stopBtn.innerHTML = '<i class="fas fa-stop"></i> Arrêter Stress Test';
+    }
+  } catch (err) {
+    status.textContent = '❌ Erreur de connexion';
+    stopBtn.disabled = false;
+    stopBtn.innerHTML = '<i class="fas fa-stop"></i> Arrêter Stress Test';
+  }
 }
 
 function mainLoop() {

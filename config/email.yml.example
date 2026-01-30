@@ -1,0 +1,22 @@
+# Configuration Email & Discord
+# IMPORTANT: Copier ce fichier vers email.yml et remplir avec vos vraies credentials
+
+smtp:
+  address: smtp.gmail.com
+  port: 587
+  domain: gmail.com
+  user_name: votre.email@gmail.com
+  password: YOUR_GMAIL_APP_PASSWORD_HERE
+  authentication: login
+  enable_starttls_auto: true
+
+notifications:
+  from: "Mac Monitor Alerts <votre.email@gmail.com>"
+  to: votre.email@gmail.com
+  enabled: true
+
+discord:
+  webhook_url: https://discord.com/api/webhooks/YOUR_WEBHOOK_URL_HERE
+  enabled: true
+  username: "Mac Monitor"
+  avatar_url: ""

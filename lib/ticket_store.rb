@@ -48,6 +48,10 @@ module TicketStore
 
     tickets.unshift(new_ticket)
     save(tickets)
+    
+    # Envoi de notification email
+    notify_ticket_created(new_ticket)
+    
     new_ticket
   end
 
@@ -123,6 +127,17 @@ end
       t[:title] == title &&
       (fingerprint.nil? || t[:fingerprint] == fingerprint)
     end
+  end
+
+  # Notification lors de la création d'un ticket
+  def notify_ticket_created(ticket)
+    require_relative 'notifier'
+    Thread.new do
+      Notifier.send_ticket_email(ticket)
+      Notifier.send_discord_webhook(ticket)
+    end
+  rescue => e
+    puts "[ERROR] Failed to notify ticket creation: #{e.message}"
   end
 
   private

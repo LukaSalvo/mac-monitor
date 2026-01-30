@@ -1,6 +1,6 @@
 require 'sinatra'
 require 'json'
-require 'sys/filesystem'
+# require 'sys/filesystem'  # Commented out, using df fallback
 require 'socket'
 require 'rexml/document'
 # require 'pony'
@@ -13,6 +13,7 @@ require_relative 'lib/network_monitor'
 require_relative 'lib/ticket_store'
 require_relative 'lib/alert_manager'
 require_relative 'lib/log_watcher'
+require_relative 'lib/stress_tester'
 
 set :port, 3000
 set :bind, '0.0.0.0'
@@ -92,6 +93,22 @@ get '/api/system' do
 end
 
 require_relative 'lib/dependency_manager'
+
+# Stress Test Endpoints
+post '/api/stress-test/start' do
+  content_type :json
+  StressTester.start.to_json
+end
+
+post '/api/stress-test/stop' do
+  content_type :json
+  StressTester.stop.to_json
+end
+
+get '/api/stress-test/status' do
+  content_type :json
+  StressTester.status.to_json
+end
 
 get '/api/updates' do
   content_type :json

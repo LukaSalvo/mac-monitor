@@ -1,0 +1,102 @@
+module StressTester
+  extend self
+
+  @stress_thread = nil
+  @running = false
+
+  def running?
+    @running
+  end
+
+  def start
+    return { success: false, message: "Stress test already running" } if @running
+
+    @running = true
+    @stress_thread = Thread.new do
+      begin
+        puts "[STRESS TEST] Starting stress test..."
+        
+        loop do
+          break unless @running
+          
+          # CPU Stress: Calculs intensifs
+          cpu_stress
+          
+          # Memory Stress: Allocation temporaire
+          memory_stress
+          
+          # Log Stress: Génération d'erreurs
+          log_stress
+          
+          sleep 2  # Pause entre les cycles
+        end
+        
+        puts "[STRESS TEST] Stopped"
+      rescue => e
+        puts "[STRESS TEST ERROR] #{e.message}"
+        @running = false
+      end
+    end
+
+    { success: true, message: "Stress test started" }
+  end
+
+  def stop
+    return { success: false, message: "No stress test running" } unless @running
+
+    @running = false
+    @stress_thread.join(5) if @stress_thread  # Attendre max 5 secondes
+    @stress_thread = nil
+
+    { success: true, message: "Stress test stopped" }
+  end
+
+  def status
+    {
+      running: @running,
+      message: @running ? "Stress test in progress" : "Stress test idle"
+    }
+  end
+
+  private
+
+  # Stress CPU: Calculs de nombres premiers
+  def cpu_stress
+    limit = 50000
+    primes = []
+    (2..limit).each do |num|
+      is_prime = true
+      (2..Math.sqrt(num).to_i).each do |i|
+        if num % i == 0
+          is_prime = false
+          break
+        end
+      end
+      primes << num if is_prime
+      break if primes.length > 100  # Limiter pour ne pas bloquer
+    end
+  end
+
+  # Stress Memory: Allocation temporaire de tableaux
+  def memory_stress
+    # Allouer ~100MB temporairement
+    temp_data = Array.new(10_000_000) { rand(1000) }
+    temp_data.sample(100)  # Utiliser un peu les données
+    temp_data = nil  # Libérer immédiatement
+    GC.start  # Forcer le garbage collector
+  end
+
+  # Stress Logs: Générer des erreurs dans les logs
+  def log_stress
+    log_file = File.expand_path('../app.log', __dir__)
+    messages = [
+      "ERROR: Simulated critical failure in stress test",
+      "WARNING: High resource usage detected during stress test",
+      "FATAL: Simulated fatal error for testing purposes"
+    ]
+    
+    File.open(log_file, 'a') do |f|
+      f.puts "[#{Time.now}] #{messages.sample}"
+    end
+  end
+end
