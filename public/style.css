@@ -103,6 +103,24 @@ canvas { width: 100% !important; height: 300px !important; }
 .btn-kill { background: transparent; border: 1px solid #3a3b3f; color: #9fa0a4; width: 28px; height: 28px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .btn-kill:hover { border-color: #ff5522; color: #ff5522; background: rgba(255,85,34,0.1); }
 
+/* Close Ticket Button */
+.btn-close-ticket {
+  background: #4ec9b0;
+  color: white;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+.btn-close-ticket:hover {
+  background: #3da88f;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(78, 201, 176, 0.3);
+}
+
 /* Alert Lists */
 .alerts-list { display: flex; flex-direction: column; gap: 15px; padding: 20px; }
 .alert-item { display: flex; gap: 20px; padding: 20px; background: linear-gradient(145deg, #1f2024 0%, #1a1b1f 100%); border-radius: 12px; border: 1px solid #2a2b2f; position: relative; overflow: hidden; }

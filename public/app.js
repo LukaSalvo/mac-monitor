@@ -784,10 +784,14 @@ async function fetchTickets() {
     const container = document.getElementById('tickets-container');
 
     if (tickets.length > 0) {
-      let html = '<table class="styled-table"><thead><tr><th>ID</th><th>Date</th><th>Niveau</th><th>Titre</th><th>Message</th><th>Statut</th></tr></thead><tbody>';
+      let html = '<table class="styled-table"><thead><tr><th>ID</th><th>Date</th><th>Niveau</th><th>Titre</th><th>Message</th><th>Statut</th><th>Actions</th></tr></thead><tbody>';
       tickets.forEach(ticket => {
         const levelClass = ticket.level === 'critical' ? 'critical' : 'warning';
         const dateStr = new Date(ticket.timestamp * 1000).toLocaleString();
+        const closeBtn = ticket.status === 'open' ?
+          `<button class="btn-close-ticket" onclick="closeTicket('${ticket.id}')">Fermer</button>` :
+          '<span style="color:#666;">-</span>';
+
         html += `<tr>
             <td style="color:#9fa0a4;">#${ticket.id}</td>
             <td>${dateStr}</td>
@@ -795,6 +799,7 @@ async function fetchTickets() {
             <td><strong>${ticket.title}</strong></td>
             <td>${ticket.description}</td>
             <td><span class="status-badge ${ticket.status === 'open' ? 'down' : 'up'}">${ticket.status.toUpperCase()}</span></td>
+            <td>${closeBtn}</td>
         </tr>`;
       });
       html += '</tbody></table>';
@@ -803,6 +808,47 @@ async function fetchTickets() {
       container.innerHTML = '<div class="empty-state"><p>Aucun ticket ouvert.</p></div>';
     }
   } catch (err) { console.error(err); }
+}
+
+async function closeTicket(ticketId) {
+  if (!confirm('Fermer ce ticket ?')) return;
+
+  try {
+    const response = await fetch(`/api/tickets/${ticketId}/close`, {
+      method: 'POST'
+    });
+    const data = await response.json();
+
+    if (data.success) {
+      fetchTickets(); // Recharger la liste
+      showNotification('✅ Ticket fermé avec succès');
+    } else {
+      showNotification('❌ Erreur lors de la fermeture');
+    }
+  } catch (error) {
+    console.error('Erreur:', error);
+    showNotification('❌ Erreur de connexion');
+  }
+}
+
+function showNotification(message) {
+  // Simple notification en haut de l'écran
+  const notif = document.createElement('div');
+  notif.textContent = message;
+  notif.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #1e1e1e;
+    color: #4ec9b0;
+    padding: 15px 25px;
+    border-radius: 8px;
+    border: 1px solid #4ec9b0;
+    z-index: 10000;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  `;
+  document.body.appendChild(notif);
+  setTimeout(() => notif.remove(), 3000);
 }
 
 // Stress Test Functions

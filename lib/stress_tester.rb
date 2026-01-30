@@ -48,6 +48,9 @@ module StressTester
     @stress_thread.join(5) if @stress_thread  # Attendre max 5 secondes
     @stress_thread = nil
 
+    # Fermer automatiquement les tickets liés au stress test
+    close_stress_test_tickets
+
     { success: true, message: "Stress test stopped" }
   end
 
@@ -86,17 +89,28 @@ module StressTester
     GC.start  # Forcer le garbage collector
   end
 
-  # Stress Logs: Générer des erreurs dans les logs
-  def log_stress
+  # Stress Logs:  # Génère des logs d'erreur pour tester le système de tickets
+  def generate_error_logs
     log_file = File.expand_path('../app.log', __dir__)
-    messages = [
-      "ERROR: Simulated critical failure in stress test",
-      "WARNING: High resource usage detected during stress test",
-      "FATAL: Simulated fatal error for testing purposes"
-    ]
-    
     File.open(log_file, 'a') do |f|
-      f.puts "[#{Time.now}] #{messages.sample}"
+      f.puts "[#{Time.now}] ERROR: Stress test - High CPU usage detected"
+      f.puts "[#{Time.now}] FATAL: Stress test - Memory threshold exceeded"
     end
+  end
+
+  # Ferme automatiquement les tickets créés par le stress test
+  def close_stress_test_tickets
+    require_relative 'ticket_store'
+    
+    # Fermer tous les tickets contenant "Stress test" dans le titre
+    tickets = TicketStore.all
+    stress_tickets = tickets.select { |t| t[:status] == 'open' && t[:title]&.include?('Stress test') }
+    
+    stress_tickets.each do |ticket|
+      TicketStore.update_status(ticket[:id], 'closed')
+      puts "[STRESS TEST] Auto-closed ticket: #{ticket[:title]}"
+    end
+    
+    puts "[STRESS TEST] Closed #{stress_tickets.length} ticket(s)" if stress_tickets.any?
   end
 end

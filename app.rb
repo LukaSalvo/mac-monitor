@@ -81,9 +81,15 @@ get '/api/tickets' do
   TicketStore.all.to_json
 end
 
-post '/api/tickets/:id/resolve' do
+post '/api/tickets/:id/close' do
   content_type :json
-  TicketStore.update(params[:id], 'resolved').to_json
+  ticket = TicketStore.update_status(params[:id], 'closed')
+  if ticket
+    { success: true, ticket: ticket }.to_json
+  else
+    status 404
+    { success: false, error: 'Ticket not found' }.to_json
+  end
 end
 
 
