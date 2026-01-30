@@ -13,6 +13,25 @@ Un moniteur système léger et cross-platform (macOS & Linux) avec interface web
 
 ## 🛠️ Installation Rapide
 
+### Méthode 1 : Installation automatique (recommandée)
+
+```bash
+git clone https://github.com/LukaSalvo/mac-monitor.git
+cd mac-monitor
+./deploy.sh
+```
+
+Le script `deploy.sh` fait **tout automatiquement** :
+- ✅ Détecte votre OS (macOS/Linux)
+- ✅ Détecte votre version de Ruby
+- ✅ Nettoie le cache si Ruby 4.0+ (évite les erreurs)
+- ✅ Met à jour Bundler si nécessaire
+- ✅ Installe les dépendances
+- ✅ Crée `config/email.yml` depuis le template
+- ✅ Lance le serveur sur `http://0.0.0.0:3000`
+
+### Méthode 2 : Installation manuelle
+
 1. **Prérequis** : Avoir Ruby installé.
 2. **Lancer le script de déploiement** :
    ```bash

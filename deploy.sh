@@ -1,78 +1,106 @@
 #!/bin/bash
+# Script de déploiement automatique - Mac Monitor
+# Compatible macOS & Linux, Ruby 2.6 à 4.0+
 
-OS="$(uname -s)"
-# Récupération du tag Git pour la version
-CURRENT_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0-local")
+set -e  # Arrêt en cas d'erreur
 
-echo "--- Deployment ($OS) - Version: $CURRENT_VERSION ---"
+echo "🚀 Mac Monitor - Déploiement automatique"
+echo "=========================================="
+echo ""
 
-# Nettoyage des logs
-rm -f server.log
+# Détection de l'OS
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    OS="macOS"
+elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+    OS="Linux"
+else
+    OS="Unknown"
+fi
 
-# Configuration Bundler
-bundle config set --local path 'vendor/bundle'
-bundle config set --local disable_shared_gems true
+echo "📍 OS détecté: $OS"
 
-echo "Installing dependencies..."
-bundle install
+# Vérification de Ruby
+if ! command -v ruby &> /dev/null; then
+    echo "❌ Ruby n'est pas installé !"
+    echo ""
+    if [[ "$OS" == "macOS" ]]; then
+        echo "Installation recommandée:"
+        echo "  brew install ruby"
+    elif [[ "$OS" == "Linux" ]]; then
+        echo "Installation recommandée:"
+        echo "  sudo apt install ruby ruby-dev build-essential  # Ubuntu/Debian"
+        echo "  sudo dnf install ruby ruby-devel gcc make       # Fedora/RHEL"
+    fi
+    exit 1
+fi
 
-# --- GESTION DU SERVICE LOCAL ---
-# Si on n'est pas sur GitHub Actions, on met à jour le service système
-if [ "$GITHUB_ACTIONS" != "true" ]; then
-    if [ -f "./install_service.sh" ]; then
-        echo "Updating system service..."
-        chmod +x install_service.sh
-        ./install_service.sh
-    else
-        echo "WARNING: install_service.sh not found. Skipping service update."
+RUBY_VERSION=$(ruby -v | awk '{print $2}')
+echo "💎 Ruby version: $RUBY_VERSION"
+
+# Extraction de la version majeure.mineure
+RUBY_MAJOR=$(echo $RUBY_VERSION | cut -d. -f1)
+RUBY_MINOR=$(echo $RUBY_VERSION | cut -d. -f2)
+
+echo ""
+
+# Nettoyage si Ruby 4.0+ ou si problème de bundler
+if [[ $RUBY_MAJOR -ge 4 ]] || [[ $RUBY_MAJOR -eq 3 && $RUBY_MINOR -ge 2 ]]; then
+    echo "⚠️  Ruby $RUBY_VERSION détecté (3.2+ ou 4.0+)"
+    echo "🧹 Nettoyage du cache vendor pour éviter les conflits..."
+    rm -rf vendor/bundle .bundle
+    echo "✅ Cache nettoyé"
+    echo ""
+fi
+
+# Installation/Mise à jour de Bundler
+echo "📦 Vérification de Bundler..."
+if ! command -v bundle &> /dev/null; then
+    echo "Installation de Bundler..."
+    gem install bundler
+else
+    BUNDLER_VERSION=$(bundle -v | awk '{print $3}')
+    echo "Bundler version: $BUNDLER_VERSION"
+    
+    # Mise à jour si version trop ancienne
+    if [[ $RUBY_MAJOR -ge 4 ]]; then
+        echo "Mise à jour de Bundler pour Ruby 4.0+..."
+        gem install bundler
     fi
 fi
 
-# --- CONFIGURATION DU PORT (Principalement pour le mode TEST) ---
-START_PORT=3000
-MAX_PORT=3010
-FREE_PORT=""
+echo ""
 
-is_port_used() {
-    local port=$1
-    if [ "$OS" = "Darwin" ]; then
-        lsof -i :$port -t >/dev/null 2>&1
+# Configuration email.yml si manquant
+if [[ ! -f "config/email.yml" ]]; then
+    echo "⚠️  Fichier config/email.yml manquant"
+    if [[ -f "config/email.yml.example" ]]; then
+        echo "📋 Copie du template..."
+        cp config/email.yml.example config/email.yml
+        echo "✅ Fichier créé: config/email.yml"
+        echo ""
+        echo "⚠️  IMPORTANT: Éditez config/email.yml avec vos credentials !"
+        echo "   - Gmail App Password: https://myaccount.google.com/apppasswords"
+        echo "   - Discord Webhook: Paramètres du channel Discord"
+        echo ""
     else
-        ss -tuln | grep -q ":$port "
-    fi
-}
-
-for (( PORT = $START_PORT; PORT <= $MAX_PORT; PORT++ )); do
-    if ! is_port_used $PORT; then
-        FREE_PORT=$PORT
-        break
-    fi
-done
-
-# --- LANCEMENT / TEST ---
-
-if [ "$GITHUB_ACTIONS" == "true" ]; then
-    if [ -z "$FREE_PORT" ]; then echo "ERROR: No free port."; exit 1; fi
-    
-    echo "CI Mode: Testing server on port $FREE_PORT..."
-    bundle exec rackup -p $FREE_PORT --host 0.0.0.0 > server.log 2>&1 &
-    SERVER_PID=$!
-    
-    sleep 5
-    HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:$FREE_PORT || echo "000")
-    
-    if [ "$HTTP_STATUS" == "200" ]; then
-        echo "SUCCESS: Server is responding with HTTP 200"
-        kill $SERVER_PID
-        exit 0
-    else
-        echo "ERROR: HTTP $HTTP_STATUS"
-        cat server.log
-        kill $SERVER_PID 2>/dev/null
+        echo "❌ Template config/email.yml.example introuvable !"
         exit 1
     fi
-else
-    # En local, le service a déjà été relancé par install_service.sh
-    echo "Local Mode: Application is managed by system service."
-    echo "Check status with: sudo systemctl status mac-monitor (Linux) or launchctl list (Mac)"
 fi
+
+# Installation des dépendances
+echo "📦 Installation des dépendances..."
+bundle install --path vendor/bundle
+
+echo ""
+echo "✅ Installation terminée !"
+echo ""
+
+# Démarrage du serveur
+echo "🚀 Démarrage du serveur sur http://0.0.0.0:3000"
+echo "   (Accessible depuis le réseau local)"
+echo ""
+echo "Appuyez sur Ctrl+C pour arrêter"
+echo ""
+
+bundle exec rackup -p 3000 --host 0.0.0.0
