@@ -26,10 +26,22 @@ module LogWatcher
   end
 
   def check_line(line)
+    require_relative 'ticket_store'
+    
     if line =~ /FATAL|ERROR|CRITICAL/i
-      AlertManager.trigger('Critical Log Error', line.strip, 'critical')
+      TicketStore.upsert(
+        'Critical Log Error',
+        line.strip,
+        'critical',
+        fingerprint: 'log-critical'
+      )
     elsif line =~ /WARN|WARNING/i
-      AlertManager.trigger('Log Warning', line.strip, 'warning')
+      TicketStore.upsert(
+        'Log Warning',
+        line.strip,
+        'warning',
+        fingerprint: 'log-warning'
+      )
     end
   rescue => e
     puts "LogWatcher Error: #{e.message}"

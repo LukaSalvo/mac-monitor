@@ -102,9 +102,15 @@ module StressTester
   def close_stress_test_tickets
     require_relative 'ticket_store'
     
-    # Fermer tous les tickets contenant "Stress test" dans le titre
+    # Fermer tous les tickets liés au stress test (Critical Log Error et Log Warning créés pendant le test)
     tickets = TicketStore.all
-    stress_tickets = tickets.select { |t| t[:status] == 'open' && t[:title]&.include?('Stress test') }
+    stress_tickets = tickets.select do |t|
+      t[:status] == 'open' && (
+        t[:title]&.include?('Stress test') ||
+        (t[:description]&.include?('Stress test') && 
+         (t[:title] == 'Critical Log Error' || t[:title] == 'Log Warning'))
+      )
+    end
     
     stress_tickets.each do |ticket|
       TicketStore.update_status(ticket[:id], 'closed')
