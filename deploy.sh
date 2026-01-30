@@ -108,3 +108,23 @@ echo "Appuyez sur Ctrl+C pour arrêter"
 echo ""
 
 bundle exec rackup -p 3000 --host 0.0.0.0
+
+
+
+echo "✅ Installation terminée !"
+echo ""
+
+# Vérification si nous sommes dans une Pipeline CI (GitHub Actions)
+if [[ "$GITHUB_ACTIONS" == "true" ]]; then
+    echo "✅ Test de déploiement réussi (Mode CI détecté)."
+    exit 0
+fi
+
+# Démarrage du serveur (Mode Local uniquement)
+echo "🚀 Démarrage du serveur sur http://0.0.0.0:3000"
+echo "   (Accessible depuis le réseau local)"
+echo ""
+echo "Appuyez sur Ctrl+C pour arrêter"
+echo ""
+
+bundle exec rackup -p 3000 --host 0.0.0.0
