@@ -66,12 +66,23 @@ jobs:
         id: tag_step
         run: |
           git fetch --tags
+          # Récupérer le dernier tag
           LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
+          
+          # Incrémentation de la version
           VERSION=${LATEST_TAG#v}
           IFS='.' read -r major minor patch <<< "$VERSION"
           NEW_PATCH=$((patch + 1))
           NEW_TAG="v$major.$minor.$NEW_PATCH"
           
+          # BOUCLE DE SÉCURITÉ : Si le tag existe déjà, on incrémente encore
+          while git rev-parse "$NEW_TAG" >/dev/null 2>&1; do
+            echo "⚠️ Le tag $NEW_TAG existe déjà, incrémentation supplémentaire..."
+            patch=$((patch + 1))
+            NEW_TAG="v$major.$minor.$patch"
+          done
+          
+          echo "🚀 Nouveau tag validé : $NEW_TAG"
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           git tag $NEW_TAG
