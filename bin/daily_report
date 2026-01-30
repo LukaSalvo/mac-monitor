@@ -40,12 +40,17 @@ cpu  = stats(entries, :cpu_percent)
 disk = stats(entries, :disk_percent)
 ram  = stats(entries, :ram_free_mb)
 
+def fmt(stat, unit = "")
+  return "n/a" unless stat
+  "min #{stat[:min]}#{unit} | max #{stat[:max]}#{unit} | moy #{stat[:avg]}#{unit} | n=#{stat[:count]}"
+end
+
 desc = []
 desc << "Période: #{Time.at(midnight)} -> maintenant"
 desc << ""
-desc << "CPU (%): #{cpu || 'n/a'}"
-desc << "Disque (%): #{disk || 'n/a'}"
-desc << "RAM libre (MB): #{ram || 'n/a'}"
+desc << "CPU:        #{fmt(cpu, "%")}"
+desc << "Disque:     #{fmt(disk, "%")}"
+desc << "RAM libre:  #{fmt(ram, "MB")}"
 desc << ""
 desc << "Échantillons: #{entries.size}"
 desc << "Dernière mise à jour: #{Time.now}"

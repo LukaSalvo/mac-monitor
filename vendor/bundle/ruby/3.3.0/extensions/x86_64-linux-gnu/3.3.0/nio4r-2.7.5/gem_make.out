@@ -1,4 +1,4 @@
-current directory: /home/aminobela/mac-monitor/vendor/bundle/ruby/3.3.0/gems/nio4r-2.7.5/ext/nio4r
+current directory: /home/leo/mac-monitor/mac-monitor/vendor/bundle/ruby/3.3.0/gems/nio4r-2.7.5/ext/nio4r
 /usr/bin/ruby3.3 -I/usr/lib/ruby/vendor_ruby extconf.rb
 checking for unistd.h... yes
 checking for rb_io_descriptor()... yes
@@ -12,11 +12,11 @@ checking for port_event_t in port.h... no
 checking for sys/resource.h... yes
 creating Makefile
 
-current directory: /home/aminobela/mac-monitor/vendor/bundle/ruby/3.3.0/gems/nio4r-2.7.5/ext/nio4r
-make DESTDIR\= sitearchdir\=./.gem.20260121-51815-hhhzij sitelibdir\=./.gem.20260121-51815-hhhzij clean
+current directory: /home/leo/mac-monitor/mac-monitor/vendor/bundle/ruby/3.3.0/gems/nio4r-2.7.5/ext/nio4r
+make DESTDIR\= sitearchdir\=./.gem.20260130-933-612yzt sitelibdir\=./.gem.20260130-933-612yzt clean
 
-current directory: /home/aminobela/mac-monitor/vendor/bundle/ruby/3.3.0/gems/nio4r-2.7.5/ext/nio4r
-make DESTDIR\= sitearchdir\=./.gem.20260121-51815-hhhzij sitelibdir\=./.gem.20260121-51815-hhhzij
+current directory: /home/leo/mac-monitor/mac-monitor/vendor/bundle/ruby/3.3.0/gems/nio4r-2.7.5/ext/nio4r
+make DESTDIR\= sitearchdir\=./.gem.20260130-933-612yzt sitelibdir\=./.gem.20260130-933-612yzt
 compiling bytebuffer.c
 compiling monitor.c
 compiling nio4r_ext.c
@@ -45,9 +45,9 @@ selector.c:525:5: warning: ignoring return value of ‘write’ declared with at
       |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 linking shared-object nio4r_ext.so
 
-current directory: /home/aminobela/mac-monitor/vendor/bundle/ruby/3.3.0/gems/nio4r-2.7.5/ext/nio4r
-make DESTDIR\= sitearchdir\=./.gem.20260121-51815-hhhzij sitelibdir\=./.gem.20260121-51815-hhhzij install
-/usr/bin/install -c -m 0755 nio4r_ext.so ./.gem.20260121-51815-hhhzij
+current directory: /home/leo/mac-monitor/mac-monitor/vendor/bundle/ruby/3.3.0/gems/nio4r-2.7.5/ext/nio4r
+make DESTDIR\= sitearchdir\=./.gem.20260130-933-612yzt sitelibdir\=./.gem.20260130-933-612yzt install
+/usr/bin/install -c -m 0755 nio4r_ext.so ./.gem.20260130-933-612yzt
 
-current directory: /home/aminobela/mac-monitor/vendor/bundle/ruby/3.3.0/gems/nio4r-2.7.5/ext/nio4r
-make DESTDIR\= sitearchdir\=./.gem.20260121-51815-hhhzij sitelibdir\=./.gem.20260121-51815-hhhzij clean
+current directory: /home/leo/mac-monitor/mac-monitor/vendor/bundle/ruby/3.3.0/gems/nio4r-2.7.5/ext/nio4r
+make DESTDIR\= sitearchdir\=./.gem.20260130-933-612yzt sitelibdir\=./.gem.20260130-933-612yzt clean

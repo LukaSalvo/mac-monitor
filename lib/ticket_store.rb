@@ -50,7 +50,10 @@ module TicketStore
     save(tickets)
     
     # Envoi de notification email
-    notify_ticket_created(new_ticket)
+   unless new_ticket[:title].start_with?("Rapport quotidien") || new_ticket[:level] == "info"
+  notify_ticket_created(new_ticket)
+end
+
     
     new_ticket
   end
