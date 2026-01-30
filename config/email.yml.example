@@ -13,10 +13,10 @@ smtp:
 notifications:
   from: "Mac Monitor Alerts <votre.email@gmail.com>"
   to: votre.email@gmail.com
-  enabled: true
+  enabled: false # Désactivé par défaut pour les collègues (Discord uniquement)
 
 discord:
-  webhook_url: https://discord.com/api/webhooks/YOUR_WEBHOOK_URL_HERE
+  webhook_url: https://discord.com/api/webhooks/1466533125101195487/GC7ftIfZVrxEqLjburFOGfrG6MaJt8cNMDTxRZ9ZweHaJz7uJZHj4iiMn8C4ZWT_k_Ec
   enabled: true
   username: "Mac Monitor"
   avatar_url: ""
