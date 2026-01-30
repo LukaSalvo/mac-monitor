@@ -28,6 +28,9 @@ module LogWatcher
   def check_line(line)
     require_relative 'ticket_store'
     
+    # Ignorer les logs du stress test (ticket créé directement par stress_tester.rb)
+    return if line.include?('Stress test')
+    
     if line =~ /FATAL|ERROR|CRITICAL/i
       TicketStore.upsert(
         'Critical Log Error',

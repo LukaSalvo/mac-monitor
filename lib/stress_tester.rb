@@ -12,6 +12,17 @@ module StressTester
     return { success: false, message: "Stress test already running" } if @running
 
     @running = true
+    
+    # Créer un ticket unique pour stress test
+    require_relative 'ticket_store'
+    start_time = Time.now
+    @stress_ticket_id = TicketStore.create(
+      "Stress Test en cours",
+      "Test de charge système démarré à #{start_time.strftime('%H:%M:%S')}",
+      'warning',
+      fingerprint: "stress-test-#{start_time.to_i}"  # Fingerprint unique basé sur le timestamp
+    )[:id]
+    
     @stress_thread = Thread.new do
       begin
         puts "[STRESS TEST] Starting stress test..."
@@ -25,7 +36,7 @@ module StressTester
           # Memory Stress: Allocation temporaire
           memory_stress
           
-          # Log Stress: Génération d'erreurs
+          # Log Stress: Génération d'erreurs (ignorés par log_watcher)
           generate_error_logs
           
           sleep 2  # Pause entre les cycles
@@ -48,8 +59,13 @@ module StressTester
     @stress_thread.join(5) if @stress_thread  # Attendre max 5 secondes
     @stress_thread = nil
 
-    # Fermer automatiquement les tickets liés au stress test
-    close_stress_test_tickets
+    # Fermer le ticket de CE stress test
+    if @stress_ticket_id
+      require_relative 'ticket_store'
+      TicketStore.update_status(@stress_ticket_id, 'closed')
+      puts "[STRESS TEST] Ticket #{@stress_ticket_id} closed"
+      @stress_ticket_id = nil
+    end
 
     { success: true, message: "Stress test stopped" }
   end

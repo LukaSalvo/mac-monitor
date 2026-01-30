@@ -798,7 +798,7 @@ async function fetchTickets() {
             <td><span class="metric-badge ${levelClass}">${ticket.level}</span></td>
             <td><strong>${ticket.title}</strong></td>
             <td>${ticket.description}</td>
-            <td><span class="status-badge ${ticket.status === 'open' ? 'down' : 'up'}">${ticket.status.toUpperCase()}</span></td>
+            <td><span class="status-badge ${ticket.status}">${ticket.status.toUpperCase()}</span></td>
             <td>${closeBtn}</td>
         </tr>`;
       });

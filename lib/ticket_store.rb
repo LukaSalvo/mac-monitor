@@ -65,8 +65,12 @@ def upsert(title, description, level = 'info', fingerprint: nil)
   end
 
   if matches.any?
-    # On garde le plus récent (comme tu fais unshift, c’est généralement le 1er)
     ticket = matches.first
+
+    # ⚠️ Si le ticket est fermé, NE PAS le réouvrir → créer un nouveau ticket
+    if ticket[:status] == 'closed'
+      return create(title, description, level, fingerprint: "#{fingerprint}-#{now}")
+    end
 
     # Fusion des occurrences + timestamps
     total_occ = matches.sum { |t| (t[:occurrences] || 1).to_i }
@@ -78,10 +82,8 @@ def upsert(title, description, level = 'info', fingerprint: nil)
     ticket[:description] = description
     ticket[:level] = level if more_severe?(level, ticket[:level])
 
-    # On ré-ouvre si c'était fermé
-    was_closed = (ticket[:status] == 'closed')
+    # Le ticket reste ouvert (pas de réouverture nécessaire)
     ticket[:status] = 'open'
-    ticket.delete(:closed_at)
 
     # Supprime les doublons (tous les autres matches)
     tickets.reject! do |t|
@@ -91,12 +93,6 @@ def upsert(title, description, level = 'info', fingerprint: nil)
     end
 
     save(tickets)
-    
-    # Notifier si le ticket vient d'être réouvert
-    if was_closed
-      notify_ticket_created(ticket)
-    end
-    
     ticket
   else
     create(title, description, level, fingerprint: fingerprint)
@@ -137,14 +133,21 @@ end
   end
 
   # Notification lors de la création d'un ticket
+  # Notification lors de la création d'un ticket
   def notify_ticket_created(ticket)
     require_relative 'notifier'
+    
     Thread.new do
-      Notifier.send_ticket_email(ticket)
-      Notifier.send_discord_webhook(ticket)
+      begin
+        Notifier.send_ticket_email(ticket)
+        Notifier.send_discord_webhook(ticket)
+      rescue => e
+        puts "[NOTIFIER ERROR] #{e.message}"
+        puts e.backtrace.join("\n")
+      end
     end
   rescue => e
-    puts "[ERROR] Failed to notify ticket creation: #{e.message}"
+    puts "[ERROR] Failed to spawn notification thread: #{e.message}"
   end
 
   private
