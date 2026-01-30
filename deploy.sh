@@ -48,6 +48,13 @@ if [[ $RUBY_MAJOR -ge 4 ]] || [[ $RUBY_MAJOR -eq 3 && $RUBY_MINOR -ge 2 ]]; then
     echo "⚠️  Ruby $RUBY_VERSION détecté (3.2+ ou 4.0+)"
     echo "🧹 Nettoyage du cache vendor pour éviter les conflits..."
     rm -rf vendor/bundle .bundle
+    
+    # Supprimer Gemfile.lock pour forcer la régénération avec Bundler moderne
+    if [[ -f "Gemfile.lock" ]]; then
+        echo "🗑️  Suppression de Gemfile.lock (régénération avec Bundler $BUNDLER_VERSION)..."
+        rm -f Gemfile.lock
+    fi
+    
     echo "✅ Cache nettoyé"
     echo ""
 fi
@@ -77,10 +84,6 @@ if [[ ! -f "config/email.yml" ]]; then
         echo "📋 Copie du template..."
         cp config/email.yml.example config/email.yml
         echo "✅ Fichier créé: config/email.yml"
-        echo ""
-        echo "⚠️  IMPORTANT: Éditez config/email.yml avec vos credentials !"
-        echo "   - Gmail App Password: https://myaccount.google.com/apppasswords"
-        echo "   - Discord Webhook: Paramètres du channel Discord"
         echo ""
     else
         echo "❌ Template config/email.yml.example introuvable !"
