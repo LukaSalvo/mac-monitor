@@ -90,7 +90,8 @@ fi
 
 # Installation des dépendances
 echo "📦 Installation des dépendances..."
-bundle install --path vendor/bundle
+bundle config set --local path 'vendor/bundle'
+bundle install
 
 echo ""
 echo "✅ Installation terminée !"
