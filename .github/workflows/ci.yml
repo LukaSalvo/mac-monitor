@@ -15,7 +15,7 @@ jobs:
         with:
           ruby-version: '3.2'
           bundler-cache: true
-          bundler: latest # Force une version compatible avec Ruby 3.2
+          bundler: latest # Force la compatibilité avec Ruby 3.2+
       - name: Security Check
         run: |
           gem install bundler-audit
@@ -27,7 +27,7 @@ jobs:
     if: github.ref == 'refs/heads/main'
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest] # Test simultané sur Linux et Mac
     runs-on: ${{ matrix.os }}
     outputs:
       important_changes: ${{ steps.filter.outputs.important }}
@@ -42,12 +42,11 @@ jobs:
               - 'deploy.sh'
               - 'install_service.sh'
               - 'public/**'
-
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.2'
           bundler-cache: true
-          bundler: latest # Correction pour éviter l'erreur NoMethodError
+          bundler: latest
       - name: Run Deployment Script
         run: |
           chmod +x ./deploy.sh
@@ -73,7 +72,6 @@ jobs:
           NEW_PATCH=$((patch + 1))
           NEW_TAG="v$major.$minor.$NEW_PATCH"
           
-          echo "Version update: $LATEST_TAG -> $NEW_TAG"
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           git tag $NEW_TAG
