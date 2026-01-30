@@ -1,9 +1,16 @@
+# Logs
 app.log
 server.log
-.env
-.bundle
-vendor
+*.log
 
-# Data files (runtime, not code)
-data/
+# Environment & Secrets
+.env
 config/email.yml
+
+# Ruby / Bundler (Fichiers locaux Mac arm64)
+.bundle/
+vendor/bundle/
+vendor/ruby/
+
+# Data runtime
+data/

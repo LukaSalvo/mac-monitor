@@ -15,6 +15,7 @@ jobs:
         with:
           ruby-version: '3.2'
           bundler-cache: true
+          bundler: latest # Force une version compatible avec Ruby 3.2
       - name: Security Check
         run: |
           gem install bundler-audit
@@ -32,8 +33,6 @@ jobs:
       important_changes: ${{ steps.filter.outputs.important }}
     steps:
       - uses: actions/checkout@v4
-      
-      # Filtre élargi : détecte les changements dans le code, le service et les assets
       - uses: dorny/paths-filter@v3
         id: filter
         with:
@@ -48,6 +47,7 @@ jobs:
         with:
           ruby-version: '3.2'
           bundler-cache: true
+          bundler: latest # Correction pour éviter l'erreur NoMethodError
       - name: Run Deployment Script
         run: |
           chmod +x ./deploy.sh
@@ -55,7 +55,6 @@ jobs:
 
   create-tag:
     needs: deploy-test
-    # Déclenchement si modif détectée dans les fichiers importants sur la branche main
     if: github.ref == 'refs/heads/main' && needs.deploy-test.outputs.important_changes == 'true'
     runs-on: ubuntu-latest
     permissions:
