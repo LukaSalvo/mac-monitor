@@ -39,8 +39,8 @@ jobs:
           filters: |
             important:
               - 'app.rb'
-              - 'deploy.sh'
-              - 'install_service.sh'
+              - 'scripts/deploy.sh'
+              - 'scripts/install_service.sh'
               - 'public/**'
       - uses: ruby/setup-ruby@v1
         with:
@@ -49,8 +49,8 @@ jobs:
           bundler: latest
       - name: Run Deployment Script
         run: |
-          chmod +x ./deploy.sh
-          ./deploy.sh
+          chmod +x ./scripts/deploy.sh
+          ./scripts/deploy.sh
 
   create-tag:
     needs: deploy-test

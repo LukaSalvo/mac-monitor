@@ -18,7 +18,7 @@ Un moniteur systeme leger et cross-platform (macOS & Linux) avec interface web, 
 ```bash
 git clone https://github.com/LukaSalvo/mac-monitor.git
 cd mac-monitor
-./deploy.sh
+./scripts/deploy.sh
 ```
 
 Le script `deploy.sh` fait **tout automatiquement** :
@@ -35,11 +35,9 @@ Le script `deploy.sh` fait **tout automatiquement** :
 1. **Prerequis** : Avoir Ruby installe.
 2. **Lancer le script de deploiement** :
    ```bash
-   ./deploy.sh
+   ./scripts/deploy.sh
    ```
    Ce script installe les dependances (gems) localement et lance le serveur sur le port 3000.
-
-
 
 ## Utilisation
 
@@ -52,16 +50,28 @@ Accedez a l'interface via votre navigateur :
 Pour lancer l'application automatiquement au demarrage du systeme :
 
 ```bash
-sudo ./install_service.sh
+sudo ./scripts/install_service.sh
 ```
 - **Linux** : Cree un service `systemd`.
 - **macOS** : Cree un agent `launchd`.
 
 ## Architecture
-- `app.rb` : Point d'entree serveur (Sinatra).
-- `lib/` : Logique modulaire (`SystemMonitor`, `NetworkMonitor`, `AlertManager`).
-- `public/` : Interface Frontend (HTML/JS).
-- `deploy.sh` : Script d'installation et lancement.
+
+```
+mac-monitor/
+|-- app.rb              # Point d'entree serveur (Sinatra)
+|-- config.ru           # Configuration Rack
+|-- Gemfile             # Dependances Ruby
+|-- lib/                # Logique modulaire (SystemMonitor, NetworkMonitor, etc.)
+|-- public/             # Interface Frontend (HTML/JS/CSS)
+|-- scripts/            # Scripts de deploiement et maintenance
+|-- docs/               # Documentation detaillee
+|-- bin/                # Scripts executables (cron)
+|-- config/             # Fichiers de configuration
++-- test/               # Tests
+```
+
+Voir [docs/USAGE.md](docs/USAGE.md) pour plus de details sur les scripts.
 
 ---
 
@@ -82,19 +92,6 @@ sudo ./install_service.sh
 2. **Editer `config/email.yml`** avec vos credentials :
    - **Gmail** : Creer un App Password (https://myaccount.google.com/apppasswords)
    - **Discord** : Creer un webhook dans les parametres du channel
-
-### Fichiers crees
-- `lib/notifier.rb` : Module Email + Discord
-- `lib/stress_tester.rb` : Simulation de charge
-- `config/email.yml.example` : Template de configuration
-- `test/test_email.rb` / `test/test_discord.rb` : Scripts de test
-
-### Fichiers modifies
-- `Gemfile` : Ajout gem `mail`
-- `lib/ticket_store.rb` : Hook notifications automatiques
-- `app.rb` : API stress test (`/api/stress-test/*`)
-- `public/index.html` : Boutons stress test
-- `public/app.js` : Logique frontend
 
 ### Test rapide
 ```bash
