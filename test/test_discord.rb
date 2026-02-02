@@ -21,12 +21,12 @@ test_ticket = {
 puts "Configuration Discord:"
 config = Notifier.config
 if config && config['discord']
-  puts "✅ Config Discord trouvée"
+  puts "[OK] Config Discord trouvee"
   puts "   - Webhook: #{config['discord']['webhook_url'][0..50]}..."
   puts "   - Enabled: #{config['discord']['enabled']}"
   puts "   - Username: #{config['discord']['username']}"
 else
-  puts "❌ Config Discord non trouvée"
+  puts "[ERROR] Config Discord non trouvee"
   exit 1
 end
 
@@ -36,9 +36,10 @@ puts "Envoi du message Discord..."
 result = Notifier.send_discord_webhook(test_ticket)
 
 if result
-  puts "✅ Message Discord envoyé !"
+  puts "[OK] Message Discord envoye !"
   puts ""
-  puts "Vérifie ton serveur Discord !"
+  puts "Verifie ton serveur Discord !"
 else
-  puts "❌ Échec de l'envoi Discord"
+  puts "[ERROR] Echec de l'envoi Discord"
 end
+

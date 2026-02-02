@@ -22,14 +22,14 @@ test_ticket = {
 puts "Configuration email:"
 config = Notifier.config
 if config
-  puts "✅ Fichier config/email.yml trouvé"
+  puts "[OK] Fichier config/email.yml trouve"
   puts "   - SMTP: #{config['smtp']['address']}:#{config['smtp']['port']}"
   puts "   - User: #{config['smtp']['user_name']}"
   puts "   - From: #{config['notifications']['from']}"
   puts "   - To: #{config['notifications']['to']}"
   puts "   - Enabled: #{config['notifications']['enabled']}"
 else
-  puts "❌ Fichier config/email.yml non trouvé"
+  puts "[ERROR] Fichier config/email.yml non trouve"
   exit 1
 end
 
@@ -39,15 +39,16 @@ puts "Tentative d'envoi d'email..."
 begin
   result = Notifier.send_ticket_email(test_ticket)
   if result
-    puts "✅ Email envoyé avec succès !"
+    puts "[OK] Email envoye avec succes !"
     puts ""
-    puts "Vérifiez votre boîte Gmail: #{config['notifications']['to']}"
+    puts "Verifiez votre boite Gmail: #{config['notifications']['to']}"
   else
-    puts "❌ L'envoi a échoué (vérifiez les logs ci-dessus)"
+    puts "[ERROR] L'envoi a echoue (verifiez les logs ci-dessus)"
   end
 rescue => e
-  puts "❌ ERREUR: #{e.message}"
+  puts "[ERROR] #{e.message}"
   puts ""
   puts "Backtrace:"
   puts e.backtrace.first(10)
 end
+
