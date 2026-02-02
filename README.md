@@ -2,18 +2,156 @@
 
 Un moniteur systeme leger et cross-platform (macOS & Linux) avec interface web, alertes automatiques et gestion de tickets.
 
-## Fonctions Cles
-- **Monitoring Temps Reel** : CPU, RAM, Disque, Reseau (Upload/Download), Temperature.
-- **Support Multi-OS** : Logique native pour macOS (`sysctl`, `vm_stat`) et Linux (`/proc`).
-- **Scanner Reseau** : Decouverte des appareils connectes (Nmap ou ARP).
-- **Automatisation Phase 2** :
-    - **Tickets Incidents** : Creation automatique de tickets si erreur detectee dans les logs.
-    - **Notifications** : Envoi d'emails pour les alertes critiques.
-    - **Updates** : Verification des mises a jour systeme et Gems.
+**Projet realise par :** Doryan, Amin, Luka et Leo
 
-## Installation Rapide
+---
 
-### Methode 1 : Installation automatique (recommandee)
+## Automatisations Implementees
+
+Ce projet implemente plusieurs automatisations pour la surveillance et la maintenance du systeme :
+
+### 1. Tickets d'Incidents Automatiques (Leo)
+
+**Fichiers :** `lib/ticket_engine.rb`, `lib/ticket_store.rb`
+
+Le systeme cree automatiquement des tickets lorsque certains seuils sont depasses :
+
+| Metrique | Seuil Critique | Seuil Retour Normal |
+|----------|----------------|---------------------|
+| CPU | > 85% | < 70% |
+| Disque | > 90% | < 85% |
+| RAM libre | < 800 MB | > 1200 MB |
+
+**Fonctionnalites :**
+- Hystérésis pour eviter les faux positifs (open/close en boucle)
+- Fusion automatique des tickets dupliques (occurrences++)
+- Fingerprint pour identifier les incidents recurrents
+
+---
+
+### 2. Surveillance des Logs en Temps Reel (Leo)
+
+**Fichiers :** `lib/log_watcher.rb`, `lib/fatal_detector.rb`
+
+- Detection des patterns `FATAL`, `ERROR`, `CRITICAL` dans les logs
+- Creation automatique de tickets lors de la detection
+- Scan des fichiers de log pour les erreurs fatales
+
+---
+
+### 3. Notifications Email (Doryan)
+
+**Fichiers :** `lib/notifier.rb`, `config/email.yml.example`
+
+- Envoi automatique d'emails via Gmail SMTP lors de la creation de tickets
+- Configuration SMTP personnalisable
+- Support App Password pour Gmail
+
+**Configuration :**
+```bash
+cp config/email.yml.example config/email.yml
+# Editer avec vos credentials Gmail
+```
+
+---
+
+### 4. Notifications Discord (Doryan)
+
+**Fichier :** `lib/notifier.rb`
+
+- Webhooks Discord avec embeds colores selon la gravite
+- Couleurs : bleu (info), jaune (warning), rouge (critical)
+- Affichage des details du ticket (ID, niveau, description, occurrences)
+
+---
+
+### 5. Deploiement Automatique (Luka, Amin)
+
+**Fichier :** `scripts/deploy.sh`
+
+Le script fait tout automatiquement :
+- Detection de l'OS (macOS/Linux)
+- Detection de la version Ruby
+- Nettoyage du cache si Ruby 3.2+ (evite les conflits)
+- Installation des dependances via Bundler
+- Creation du fichier de config email
+- Lancement du serveur
+
+```bash
+./scripts/deploy.sh
+```
+
+---
+
+### 6. CI/CD GitHub Actions (Luka)
+
+**Fichiers :** `.github/workflows/ci.yml`, `.github/dependabot.yml`
+
+Pipeline automatisee en 3 etapes :
+
+1. **Audit de Securite** : Scan des vulnerabilites avec `bundler-audit`
+2. **Tests de Deploiement** : Execution sur Ubuntu ET macOS en parallele
+3. **Creation de Tags** : Increment automatique de version (v1.0.X)
+
+**Fonctionnalites :**
+- Declenchement sur push/PR vers `main`
+- Detection des fichiers critiques modifies (`app.rb`, `deploy.sh`, `public/`)
+- Versioning semantique automatique
+
+---
+
+### 7. Services Systeme (Amin)
+
+**Fichiers :** `scripts/install_service.sh`, `scripts/stop_service.sh`
+
+Installation en tant que service pour demarrage automatique au boot :
+
+| OS | Type de Service | Fichier cree |
+|----|-----------------|--------------|
+| Linux | systemd | `/etc/systemd/system/mac-monitor.service` |
+| macOS | launchd | `~/Library/LaunchAgents/com.*.macmonitor.plist` |
+
+```bash
+sudo ./scripts/install_service.sh  # Installer
+./scripts/stop_service.sh          # Arreter
+```
+
+---
+
+### 8. Verification des Dependances (Amin)
+
+**Fichier :** `scripts/check_dep.sh`
+
+- Verification des mises a jour systeme (apt/brew)
+- Verification des gems Ruby outdated
+- Verification des outils critiques (ruby, nmap, git)
+
+---
+
+### 9. Stress Test Systeme (Amin)
+
+**Fichier :** `lib/stress_tester.rb`
+
+Simulation de charge pour tester le systeme d'alertes :
+- Stress CPU (calculs de nombres premiers)
+- Stress RAM (allocation temporaire ~100MB)
+- Generation de logs d'erreur
+
+Accessible via l'interface web : Alertes > Demarrer Stress Test
+
+---
+
+### 10. Scripts Cron (Amin)
+
+**Fichiers :** `bin/monitor_tickets`, `bin/daily_report`
+
+Scripts executables pour planification cron :
+- `monitor_tickets` : Collecte des metriques et creation de tickets
+- `daily_report` : Rapport quotidien avec statistiques (min/max/avg)
+
+---
+
+## Installation
 
 ```bash
 git clone https://github.com/LukaSalvo/mac-monitor.git
@@ -21,81 +159,37 @@ cd mac-monitor
 ./scripts/deploy.sh
 ```
 
-Le script `deploy.sh` fait **tout automatiquement** :
-- Detecte votre OS (macOS/Linux)
-- Detecte votre version de Ruby
-- Nettoie le cache si Ruby 4.0+ (evite les erreurs)
-- Met a jour Bundler si necessaire
-- Installe les dependances
-- Cree `config/email.yml` depuis le template
-- Lance le serveur sur `http://0.0.0.0:3000`
+Accedez a `http://localhost:3000`
 
-### Methode 2 : Installation manuelle
-
-1. **Prerequis** : Avoir Ruby installe.
-2. **Lancer le script de deploiement** :
-   ```bash
-   ./scripts/deploy.sh
-   ```
-   Ce script installe les dependances (gems) localement et lance le serveur sur le port 3000.
-
-## Utilisation
-
-Accedez a l'interface via votre navigateur :
-- **Local** : `http://localhost:3000`
-- **Reseau** : `http://<IP_DE_LA_MACHINE>:3000`
-
-## Installation en Service (Demarrage Auto)
-
-Pour lancer l'application automatiquement au demarrage du systeme :
-
-```bash
-sudo ./scripts/install_service.sh
-```
-- **Linux** : Cree un service `systemd`.
-- **macOS** : Cree un agent `launchd`.
+---
 
 ## Architecture
 
 ```
 mac-monitor/
-|-- app.rb              # Point d'entree serveur (Sinatra)
-|-- config.ru           # Configuration Rack
-|-- Gemfile             # Dependances Ruby
-|-- lib/                # Logique modulaire (SystemMonitor, NetworkMonitor, etc.)
-|-- public/             # Interface Frontend (HTML/JS/CSS)
-|-- scripts/            # Scripts de deploiement et maintenance
-|-- docs/               # Documentation detaillee
-|-- bin/                # Scripts executables (cron)
-|-- config/             # Fichiers de configuration
-+-- test/               # Tests
+|-- app.rb              # Serveur Sinatra
+|-- lib/                # Modules Ruby
+|   |-- system_monitor.rb
+|   |-- network_monitor.rb
+|   |-- ticket_store.rb
+|   |-- ticket_engine.rb
+|   |-- notifier.rb
+|   |-- log_watcher.rb
+|   |-- fatal_detector.rb
+|   +-- stress_tester.rb
+|-- scripts/            # Scripts d'automatisation
+|-- public/             # Frontend
+|-- docs/               # Documentation
++-- .github/workflows/  # CI/CD
 ```
-
-Voir [docs/USAGE.md](docs/USAGE.md) pour plus de details sur les scripts.
 
 ---
 
-## Automatisation Avancee (notifications Mail + Discord)
+## Equipe
 
-### Fonctionnalites
-- **Notifications Email** : Envoi automatique via Gmail SMTP lors de creation de tickets
-- **Notifications Discord** : Webhooks colores
-- **Stress Test** : Simulation de charge systeme (CPU, RAM, logs) avec controles Start/Stop
-
-### Configuration
-
-1. **Copier le template de configuration** :
-   ```bash
-   cp config/email.yml.example config/email.yml
-   ```
-
-2. **Editer `config/email.yml`** avec vos credentials :
-   - **Gmail** : Creer un App Password (https://myaccount.google.com/apppasswords)
-   - **Discord** : Creer un webhook dans les parametres du channel
-
-### Test rapide
-```bash
-bundle exec rackup -p 3000
-# Aller dans Alertes -> Demarrer Stress Test
-# Verifier Gmail et Discord
-```
+| Membre | Contributions |
+|--------|---------------|
+| **Doryan** | Notifications Email, Notifications Discord |
+| **Leo** | Tickets automatiques, Surveillance logs, Moteur d'alertes |
+| **Luka** | CI/CD GitHub Actions, Deploiement automatique |
+| **Amin** | Services systeme, Stress test, Scripts cron, Organisation repo |
