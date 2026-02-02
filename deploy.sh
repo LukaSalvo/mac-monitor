@@ -4,8 +4,8 @@
 
 set -e  # Arrêt en cas d'erreur
 
-echo "🚀 Mac Monitor - Déploiement automatique"
-echo "=========================================="
+echo "[START] Mac Monitor - Déploiement automatique"
+echo "=============================================="
 echo ""
 
 # Détection de l'OS
@@ -17,17 +17,17 @@ else
     OS="Unknown"
 fi
 
-echo "📍 OS détecté: $OS"
+echo "[INFO] OS détecté: $OS"
 
 # Au début de deploy.sh, après la détection de l'OS
 if [ -d ".git" ]; then
-    echo "🔄 Synchronisation des versions avec GitHub..."
+    echo "[SYNC] Synchronisation des versions avec GitHub..."
     git fetch --tags --quiet
 fi
 
 # Vérification de Ruby
 if ! command -v ruby &> /dev/null; then
-    echo "❌ Ruby n'est pas installé !"
+    echo "[ERROR] Ruby n'est pas installé !"
     echo ""
     if [[ "$OS" == "macOS" ]]; then
         echo "Installation recommandée:"
@@ -40,7 +40,7 @@ if ! command -v ruby &> /dev/null; then
 fi
 
 RUBY_VERSION=$(ruby -v | awk '{print $2}')
-echo "💎 Ruby version: $RUBY_VERSION"
+echo "[RUBY] Ruby version: $RUBY_VERSION"
 
 # Extraction de la version majeure.mineure
 RUBY_MAJOR=$(echo $RUBY_VERSION | cut -d. -f1)
@@ -48,7 +48,7 @@ RUBY_MINOR=$(echo $RUBY_VERSION | cut -d. -f2)
 
 # Nettoyage si Ruby 3.2+ ou 4.0+
 if [[ $RUBY_MAJOR -ge 4 ]] || [[ $RUBY_MAJOR -eq 3 && $RUBY_MINOR -ge 2 ]]; then
-    echo "🧹 Nettoyage du cache vendor pour éviter les conflits..."
+    echo "[CLEAN] Nettoyage du cache vendor pour éviter les conflits..."
     rm -rf vendor/bundle .bundle
     rm -f Gemfile.lock
 fi
@@ -70,23 +70,23 @@ if [[ ! -f "config/email.yml" ]]; then
 fi
 
 # Installation des dépendances
-echo "📦 Installation des dépendances..."
+echo "[INSTALL] Installation des dépendances..."
 bundle config set --local path 'vendor/bundle'
 bundle install
 
 echo ""
-echo "✅ Installation terminée !"
+echo "[OK] Installation terminée !"
 echo ""
 
 # --- BLOC CRITIQUE POUR LA PIPELINE ---
 # Si nous sommes sur GitHub Actions, on s'arrête ici.
 if [[ "$GITHUB_ACTIONS" == "true" ]]; then
-    echo "✅ Test de déploiement réussi (Mode CI détecté)."
+    echo "[OK] Test de déploiement réussi (Mode CI détecté)."
     exit 0
 fi
 
 # Démarrage du serveur (Uniquement en local sur ton Mac)
-echo "🚀 Démarrage du serveur sur http://0.0.0.0:3000"
+echo "[START] Démarrage du serveur sur http://0.0.0.0:3000"
 echo "Appuyez sur Ctrl+C pour arrêter"
 echo ""
 

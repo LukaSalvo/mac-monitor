@@ -1,6 +1,6 @@
-# 📋 Guide d'Utilisation des Scripts
+# Guide d'Utilisation des Scripts
 
-## 🎯 Pour un usage normal : `deploy.sh` UNIQUEMENT
+## Pour un usage normal : `deploy.sh` UNIQUEMENT
 
 **Commande** :
 ```bash
@@ -8,19 +8,19 @@
 ```
 
 **Ce qu'il fait** :
-- ✅ Détecte ton OS et Ruby
-- ✅ Nettoie le cache si nécessaire
-- ✅ Installe les dépendances
-- ✅ Crée `config/email.yml` si manquant
-- ✅ **Lance le serveur** sur `http://0.0.0.0:3000`
+- Detecte ton OS et Ruby
+- Nettoie le cache si necessaire
+- Installe les dependances
+- Cree `config/email.yml` si manquant
+- **Lance le serveur** sur `http://0.0.0.0:3000`
 
-**C'est tout ce dont tu as besoin !** 🚀
+**C'est tout ce dont tu as besoin !**
 
 ---
 
-## 🔧 Scripts avancés (optionnels)
+## Scripts avances (optionnels)
 
-### `install_service.sh` - Service système
+### `install_service.sh` - Service systeme
 
 **Usage** :
 ```bash
@@ -28,16 +28,16 @@ sudo ./install_service.sh
 ```
 
 **Quand l'utiliser** :
-- ❌ **PAS pour un usage normal !**
-- ✅ Seulement si tu veux que l'app démarre **automatiquement au boot**
-- ✅ Pour un serveur de production qui doit tourner 24/7
+- **PAS pour un usage normal !**
+- Seulement si tu veux que l'app demarre **automatiquement au boot**
+- Pour un serveur de production qui doit tourner 24/7
 
 **Ce qu'il fait** :
-- Crée un service système (launchd sur macOS, systemd sur Linux)
-- L'app démarre automatiquement au démarrage de la machine
-- Tourne en arrière-plan
+- Cree un service systeme (launchd sur macOS, systemd sur Linux)
+- L'app demarre automatiquement au demarrage de la machine
+- Tourne en arriere-plan
 
-**Contrôle du service** :
+**Controle du service** :
 ```bash
 # macOS
 launchctl list | grep macmonitor
@@ -50,7 +50,7 @@ sudo systemctl stop mac-monitor
 
 ---
 
-### `stop_service.sh` - Arrêter le service
+### `stop_service.sh` - Arreter le service
 
 **Usage** :
 ```bash
@@ -58,67 +58,67 @@ sudo systemctl stop mac-monitor
 ```
 
 **Quand l'utiliser** :
-- ✅ Seulement si tu as installé le service avec `install_service.sh`
-- ✅ Pour arrêter le service système
+- Seulement si tu as installe le service avec `install_service.sh`
+- Pour arreter le service systeme
 
 ---
 
-## 📊 Tableau récapitulatif
+## Tableau recapitulatif
 
 | Script | Quand l'utiliser | Ce qu'il fait |
 |--------|------------------|---------------|
 | **`deploy.sh`** | **Toujours** | Lance le serveur (usage normal) |
-| `install_service.sh` | Optionnel | Installe service système (auto-start) |
-| `stop_service.sh` | Optionnel | Arrête le service système |
-| `install.sh` | Jamais directement | Appelé par curl (installation distante) |
+| `install_service.sh` | Optionnel | Installe service systeme (auto-start) |
+| `stop_service.sh` | Optionnel | Arrete le service systeme |
 
 ---
 
-## 🎓 Scénarios d'usage
+## Scenarios d'usage
 
-### Scénario 1 : Développement / Test (recommandé)
+### Scenario 1 : Developpement / Test (recommande)
 ```bash
 git clone https://github.com/LukaSalvo/mac-monitor.git
 cd mac-monitor
 ./deploy.sh
 ```
-✅ Le serveur tourne tant que le terminal est ouvert  
-✅ Ctrl+C pour arrêter  
-✅ Facile à relancer
+Le serveur tourne tant que le terminal est ouvert  
+Ctrl+C pour arreter  
+Facile a relancer
 
 ---
 
-### Scénario 2 : Serveur de production
+### Scenario 2 : Serveur de production
 ```bash
 git clone https://github.com/LukaSalvo/mac-monitor.git
 cd mac-monitor
+./deploy.sh  # D'abord installer les dependances
 sudo ./install_service.sh
 ```
-✅ Le serveur démarre automatiquement au boot  
-✅ Tourne en arrière-plan  
-✅ Logs dans `server.log`
+Le serveur demarre automatiquement au boot  
+Tourne en arriere-plan  
+Logs dans `server.log`
 
-**Pour arrêter** :
+**Pour arreter** :
 ```bash
 ./stop_service.sh
 ```
 
 ---
 
-## ⚠️ Erreur commune
+## Erreur commune
 
 **Si tu lances `install_service.sh` puis `deploy.sh`** :
-- Le service tourne déjà en arrière-plan
-- `deploy.sh` va essayer de lancer un 2ème serveur
-- ❌ Erreur : port 3000 déjà utilisé
+- Le service tourne deja en arriere-plan
+- `deploy.sh` va essayer de lancer un 2eme serveur
+- Erreur : port 3000 deja utilise
 
 **Solution** :
-1. Soit utilise **uniquement `deploy.sh`** (recommandé pour dev)
+1. Soit utilise **uniquement `deploy.sh`** (recommande pour dev)
 2. Soit utilise **uniquement `install_service.sh`** (pour production)
 
 ---
 
-## 🚀 Résumé
+## Resume
 
 **Pour 99% des cas** :
 ```bash
@@ -127,7 +127,8 @@ sudo ./install_service.sh
 
 **Pour un serveur qui doit tourner 24/7** :
 ```bash
+./deploy.sh  # Installer les dependances d'abord
 sudo ./install_service.sh
 ```
 
-**C'est tout !** 🎉
+**C'est tout !**

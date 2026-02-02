@@ -2,6 +2,7 @@
 app.log
 server.log
 *.log
+maintenance_check.log
 
 # Environment & Secrets
 .env
@@ -11,6 +12,12 @@ config/email.yml
 .bundle/
 vendor/bundle/
 vendor/ruby/
+vendor/
 
 # Data runtime
 data/
+
+# OS files
+.DS_Store
+*~
+*.swp

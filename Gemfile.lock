@@ -3,12 +3,13 @@ GEM
   specs:
     base64 (0.3.0)
     date (3.5.1)
+    logger (1.7.0)
     mail (2.7.1)
       mini_mime (>= 0.1.1)
     mini_mime (1.1.5)
     mustermann (3.0.4)
       ruby2_keywords (~> 0.0.1)
-    net-imap (0.3.9)
+    net-imap (0.6.2)
       date
       net-protocol
     net-pop (0.1.2)
@@ -18,28 +19,33 @@ GEM
     net-smtp (0.5.1)
       net-protocol
     nio4r (2.7.5)
-    puma (6.6.1)
+    puma (7.2.0)
       nio4r (~> 2.0)
-    rack (2.2.21)
-    rack-protection (3.2.0)
+    rack (3.2.4)
+    rack-protection (4.2.1)
       base64 (>= 0.1.0)
-      rack (~> 2.2, >= 2.2.4)
-    rackup (1.0.1)
-      rack (< 3)
-      webrick
+      logger (>= 1.6.0)
+      rack (>= 3.0.0, < 4)
+    rack-session (2.1.1)
+      base64 (>= 0.1.0)
+      rack (>= 3.0.0)
+    rackup (2.3.1)
+      rack (>= 3)
     rexml (3.4.4)
     ruby2_keywords (0.0.5)
-    sinatra (3.2.0)
+    sinatra (4.2.1)
+      logger (>= 1.6.0)
       mustermann (~> 3.0)
-      rack (~> 2.2, >= 2.2.4)
-      rack-protection (= 3.2.0)
+      rack (>= 3.0.0, < 4)
+      rack-protection (= 4.2.1)
+      rack-session (>= 2.0.0, < 3)
       tilt (~> 2.0)
     tilt (2.7.0)
     timeout (0.6.0)
-    webrick (1.9.2)
 
 PLATFORMS
   ruby
+  x86_64-linux-gnu
 
 DEPENDENCIES
   mail (~> 2.7.1)
@@ -52,4 +58,4 @@ DEPENDENCIES
   sinatra
 
 BUNDLED WITH
-   1.17.2
+   2.6.7

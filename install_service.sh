@@ -11,6 +11,20 @@ echo "--- Installing Mac-Monitor Service ---"
 echo "App Directory: $APP_DIR"
 echo "User: $USER"
 
+# Verification des dependances avant installation du service
+if [ ! -d "vendor/bundle" ]; then
+    echo "[WARNING] Dependencies not installed. Running bundle install..."
+    bundle config set --local path 'vendor/bundle'
+    bundle install
+fi
+
+# Configuration email.yml si manquant
+if [[ ! -f "config/email.yml" ]]; then
+    if [[ -f "config/email.yml.example" ]]; then
+        cp config/email.yml.example config/email.yml
+        echo "[INFO] Created config/email.yml from template"
+    fi
+fi
 
 
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
