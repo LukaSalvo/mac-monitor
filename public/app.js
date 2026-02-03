@@ -976,3 +976,4 @@ document.addEventListener('DOMContentLoaded', () => {
   fetchData();
   checkUpdates(); // Appel unique ici
 });
+
