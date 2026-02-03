@@ -4,8 +4,12 @@ GEM
     base64 (0.3.0)
     date (3.5.1)
     logger (1.7.0)
-    mail (2.7.1)
+    mail (2.9.0)
+      logger
       mini_mime (>= 0.1.1)
+      net-imap
+      net-pop
+      net-smtp
     mini_mime (1.1.5)
     mustermann (3.0.4)
       ruby2_keywords (~> 0.0.1)
@@ -48,7 +52,7 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
-  mail (~> 2.7.1)
+  mail (~> 2.9.0)
   net-imap
   net-pop
   net-smtp
@@ -61,7 +65,7 @@ CHECKSUMS
   base64 (0.3.0) sha256=27337aeabad6ffae05c265c450490628ef3ebd4b67be58257393227588f5a97b
   date (3.5.1) sha256=750d06384d7b9c15d562c76291407d89e368dda4d4fff957eb94962d325a0dc0
   logger (1.7.0) sha256=196edec7cc44b66cfb40f9755ce11b392f21f7967696af15d274dde7edff0203
-  mail (2.7.1) sha256=ec2a3d489f7510b90d8eaa3f6abaad7038cf1d663cdf8ee66d0214a0bdf99c03
+  mail (2.9.0) sha256=6fa6673ecd71c60c2d996260f9ee3dd387d4673b8169b502134659ece6d34941
   mini_mime (1.1.5) sha256=8681b7e2e4215f2a159f9400b5816d85e9d8c6c6b491e96a12797e798f8bccef
   mustermann (3.0.4) sha256=85fadcb6b3c6493a8b511b42426f904b7f27b282835502233dd154daab13aa22
   net-imap (0.6.2) sha256=08caacad486853c61676cca0c0c47df93db02abc4a8239a8b67eb0981428acc6
