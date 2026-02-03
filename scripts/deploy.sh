@@ -3,7 +3,9 @@
 # Compatible macOS & Linux, Ruby 2.6 à 4.0+
 
 set -e  # Arrêt en cas d'erreur
-
+cd "$(dirname "$0")/.."
+echo "[DIR] Dossier de travail : $(pwd)"
+echo "=============================================="
 echo "[START] Mac Monitor - Déploiement automatique"
 echo "=============================================="
 echo ""
