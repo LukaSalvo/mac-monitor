@@ -21,6 +21,23 @@ fi
 
 echo "[INFO] OS détecté: $OS"
 
+# Configuration automatique de Ruby (Homebrew si disponible)
+if [[ "$OS" == "macOS" ]]; then
+    # Vérifier si Homebrew Ruby est installé
+    if [ -d "/opt/homebrew/opt/ruby" ]; then
+        echo "[RUBY] Homebrew Ruby détecté, configuration du PATH..."
+        export PATH="/opt/homebrew/opt/ruby/bin:$PATH"
+        export PATH="/opt/homebrew/lib/ruby/gems/4.0.0/bin:$PATH"
+    elif [ -d "/usr/local/opt/ruby" ]; then
+        echo "[RUBY] Homebrew Ruby détecté (Intel), configuration du PATH..."
+        export PATH="/usr/local/opt/ruby/bin:$PATH"
+        export PATH="/usr/local/lib/ruby/gems/4.0.0/bin:$PATH"
+    else
+        echo "[WARNING] Ruby système détecté. Pour de meilleures performances, installez:"
+        echo "  brew install ruby"
+    fi
+fi
+
 # Au début de deploy.sh, après la détection de l'OS
 if [ -d ".git" ]; then
     echo "[SYNC] Synchronisation des versions avec GitHub..."
@@ -57,9 +74,18 @@ fi
 
 # Installation/Mise à jour de Bundler
 if ! command -v bundle &> /dev/null; then
-    gem install bundler
+    echo "[BUNDLER] Installation de Bundler..."
+    if [[ $RUBY_MAJOR -lt 3 ]] || [[ $RUBY_MAJOR -eq 3 && $RUBY_MINOR -lt 1 ]]; then
+        # Ruby < 3.1 : utiliser Bundler 2.3.26 (dernière version compatible)
+        gem install bundler -v 2.3.26 --user-install
+    else
+        # Ruby >= 3.1 : utiliser la dernière version
+        gem install bundler
+    fi
 else
+    echo "[BUNDLER] Bundler déjà installé"
     if [[ $RUBY_MAJOR -ge 4 ]]; then
+        echo "[BUNDLER] Mise à jour pour Ruby 4.0+..."
         gem install bundler
     fi
 fi
