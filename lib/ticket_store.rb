@@ -67,7 +67,7 @@ def upsert(title, description, level = 'info', fingerprint: nil)
   if matches.any?
     ticket = matches.first
 
-    # ⚠️ Si le ticket est fermé, NE PAS le réouvrir → créer un nouveau ticket
+    # Si le ticket est ferme, NE PAS le reouvrir -> creer un nouveau ticket
     if ticket[:status] == 'closed'
       return create(title, description, level, fingerprint: "#{fingerprint}-#{now}")
     end
@@ -132,8 +132,7 @@ end
     end
   end
 
-  # Notification lors de la création d'un ticket
-  # Notification lors de la création d'un ticket
+  # Notification lors de la creation d'un ticket
   def notify_ticket_created(ticket)
     require_relative 'notifier'
     

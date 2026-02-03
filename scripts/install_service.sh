@@ -2,14 +2,15 @@
 
 # Configuration
 APP_DIR=$(pwd)
-USER=$(whoami)
+CURRENT_USER=$(whoami)
 RUBY_BIN=$(which ruby)
 BUNDLE_BIN=$(which bundle)
 PORT=3000
 
 echo "--- Installing Mac-Monitor Service ---"
 echo "App Directory: $APP_DIR"
-echo "User: $USER"
+echo "User: $CURRENT_USER"
+echo "Bundle: $BUNDLE_BIN"
 
 # Verification des dependances avant installation du service
 if [ ! -d "vendor/bundle" ]; then
@@ -38,12 +39,11 @@ After=network.target
 
 [Service]
 Type=simple
-User=$USER
+User=$CURRENT_USER
 WorkingDirectory=$APP_DIR
 ExecStart=$BUNDLE_BIN exec rackup -p $PORT --host 0.0.0.0
 Restart=always
 Environment=RACK_ENV=production
-
 
 [Install]
 WantedBy=multi-user.target
@@ -59,16 +59,20 @@ EOF
     sudo systemctl status mac-monitor --no-pager
 
 elif [[ "$OSTYPE" == "darwin"* ]]; then
-    PLIST_FILE="$HOME/Library/LaunchAgents/com.$USER.macmonitor.plist"
+    # Creer le dossier LaunchAgents si necessaire
+    mkdir -p "$HOME/Library/LaunchAgents"
+    
+    PLIST_FILE="$HOME/Library/LaunchAgents/com.macmonitor.plist"
     echo "Detected macOS. Creating LaunchAgent at $PLIST_FILE..."
     
+    # Creer le plist avec les variables expandues
     cat > "$PLIST_FILE" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.$USER.macmonitor</string>
+    <string>com.macmonitor</string>
     <key>ProgramArguments</key>
     <array>
         <string>$BUNDLE_BIN</string>
@@ -81,7 +85,13 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
     </array>
     <key>WorkingDirectory</key>
     <string>$APP_DIR</string>
-
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$HOME/.rbenv/shims:$HOME/.rvm/bin</string>
+        <key>RACK_ENV</key>
+        <string>production</string>
+    </dict>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
@@ -94,15 +104,31 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
 </plist>
 EOF
 
-    echo "Loading LaunchAgent..."
-    echo "Reloading LaunchAgent..."
-    launchctl unload "$PLIST_FILE" 2>/dev/null
+    echo "Plist file created."
+    
+    # Decharger l'ancien service si existe
+    echo "Unloading previous service (if exists)..."
+    launchctl bootout gui/$(id -u) "$PLIST_FILE" 2>/dev/null || true
+    
     sleep 1
-    launchctl load "$PLIST_FILE"
-    echo "Service installed and loaded. Logs at $APP_DIR/server.log"
+    
+    # Charger le nouveau service
+    echo "Loading new service..."
+    launchctl bootstrap gui/$(id -u) "$PLIST_FILE"
+    
+    echo ""
+    echo "[OK] Service installed!"
+    echo "Logs at: $APP_DIR/server.log"
+    echo ""
+    echo "Commands:"
+    echo "  Stop:    launchctl bootout gui/$(id -u) $PLIST_FILE"
+    echo "  Start:   launchctl bootstrap gui/$(id -u) $PLIST_FILE"
+    echo "  Status:  launchctl list | grep macmonitor"
+    
 else
     echo "Unsupported OS for auto-install."
     exit 1
 fi
 
+echo ""
 echo "--- Installation Complete ---"

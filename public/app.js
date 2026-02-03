@@ -969,13 +969,10 @@ document.addEventListener('DOMContentLoaded', () => {
   initNav();
   updateSettingsPage();
   switchPage('dashboard');
-  
+
   const rate = parseInt(localStorage.getItem('refreshRate') || '5000');
   intervalID = setInterval(mainLoop, rate);
 
   fetchData();
   checkUpdates(); // Appel unique ici
 });
-
-
-//test
