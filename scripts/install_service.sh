@@ -1,7 +1,10 @@
 #!/bin/bash
 
 # Configuration
-APP_DIR=$(pwd)
+# Detecter le dossier racine du projet (parent du dossier scripts/)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
 CURRENT_USER=$(whoami)
 RUBY_BIN=$(which ruby)
 BUNDLE_BIN=$(which bundle)
