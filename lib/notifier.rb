@@ -56,21 +56,21 @@ module Notifier
     subject = "[Mac Monitor] #{emoji} #{ticket[:title]}"
     
     body = <<~EMAIL
-      🎫 Nouveau Ticket d'Incident
+      Nouveau Ticket d'Incident
       ═══════════════════════════════════════
       
-      📋 ID: #{ticket[:id]}
+      ID: #{ticket[:id]}
       #{emoji} Niveau: #{ticket[:level].upcase}
-      📝 Titre: #{ticket[:title]}
+      Titre: #{ticket[:title]}
       
-      🔍 Description:
+      Description:
       #{ticket[:description]}
       
-      ⏰ Première détection: #{Time.at(ticket[:first_seen]).strftime('%Y-%m-%d %H:%M:%S')}
-      🔄 Occurrences: #{ticket[:occurrences] || 1}
-      📊 Statut: #{ticket[:status]}
+      Première détection: #{Time.at(ticket[:first_seen]).strftime('%Y-%m-%d %H:%M:%S')}
+      Occurrences: #{ticket[:occurrences] || 1}
+      Statut: #{ticket[:status]}
       
-      🔗 Voir le dashboard: http://localhost:3000
+      Voir le dashboard: http://localhost:3000
       
       ═══════════════════════════════════════
       Mac Monitor - Système de surveillance automatique
