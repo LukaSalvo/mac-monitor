@@ -189,7 +189,7 @@ mac-monitor/
 
 | Membre | Contributions |
 |--------|---------------|
-| **Doryan** | Notifications Email, Notifications Discord |
-| **Leo** | Tickets automatiques, Surveillance logs, Moteur d'alertes |
+| **Doryan** | Notifications Email, Notifications Discord, Fermeture automatique des tickets après stress test |
+| **Leo** | Tickets automatiques, Surveillance logs, Moteur d'alertes,  |
 | **Luka** | CI/CD GitHub Actions, Deploiement automatique |
 | **Amin** | Services systeme, Stress test, Scripts cron, Organisation repo |
