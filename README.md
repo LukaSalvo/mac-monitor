@@ -128,7 +128,7 @@ sudo ./scripts/install_service.sh  # Installer
 
 ---
 
-### 9. Stress Test Systeme (Amin)
+### 9. Stress Test Systeme (Doryan)
 
 **Fichier :** `lib/stress_tester.rb`
 
@@ -141,7 +141,7 @@ Accessible via l'interface web : Alertes > Demarrer Stress Test
 
 ---
 
-### 10. Scripts Cron (Amin)
+### 10. Scripts Cron (Léo)
 
 **Fichiers :** `bin/monitor_tickets`, `bin/daily_report`
 
