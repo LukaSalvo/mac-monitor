@@ -4,6 +4,7 @@
 
 set -e  # Arrêt en cas d'erreur
 cd "$(dirname "$0")/.."
+
 echo "[DIR] Dossier de travail : $(pwd)"
 echo "=============================================="
 echo "[START] Mac Monitor - Déploiement automatique"
@@ -38,10 +39,10 @@ if [[ "$OS" == "macOS" ]]; then
     fi
 fi
 
-# Au début de deploy.sh, après la détection de l'OS
+# Sync tags si git présent
 if [ -d ".git" ]; then
     echo "[SYNC] Synchronisation des versions avec GitHub..."
-    git fetch --tags --quiet
+    git fetch --tags --quiet || true
 fi
 
 # Vérification de Ruby
@@ -62,8 +63,8 @@ RUBY_VERSION=$(ruby -v | awk '{print $2}')
 echo "[RUBY] Ruby version: $RUBY_VERSION"
 
 # Extraction de la version majeure.mineure
-RUBY_MAJOR=$(echo $RUBY_VERSION | cut -d. -f1)
-RUBY_MINOR=$(echo $RUBY_VERSION | cut -d. -f2)
+RUBY_MAJOR=$(echo "$RUBY_VERSION" | cut -d. -f1)
+RUBY_MINOR=$(echo "$RUBY_VERSION" | cut -d. -f2)
 
 # Nettoyage si Ruby 3.2+ ou 4.0+
 if [[ $RUBY_MAJOR -ge 4 ]] || [[ $RUBY_MAJOR -eq 3 && $RUBY_MINOR -ge 2 ]]; then
@@ -76,10 +77,8 @@ fi
 if ! command -v bundle &> /dev/null; then
     echo "[BUNDLER] Installation de Bundler..."
     if [[ $RUBY_MAJOR -lt 3 ]] || [[ $RUBY_MAJOR -eq 3 && $RUBY_MINOR -lt 1 ]]; then
-        # Ruby < 3.1 : utiliser Bundler 2.3.26 (dernière version compatible)
         gem install bundler -v 2.3.26 --user-install
     else
-        # Ruby >= 3.1 : utiliser la dernière version
         gem install bundler
     fi
 else
@@ -107,15 +106,52 @@ echo "[OK] Installation terminée !"
 echo ""
 
 # --- BLOC CRITIQUE POUR LA PIPELINE ---
-# Si nous sommes sur GitHub Actions, on s'arrête ici.
-if [[ "$GITHUB_ACTIONS" == "true" ]]; then
+if [[ "${GITHUB_ACTIONS:-}" == "true" ]]; then
     echo "[OK] Test de déploiement réussi (Mode CI détecté)."
     exit 0
 fi
 
-# Démarrage du serveur (Uniquement en local sur ton Mac)
-echo "[START] Démarrage du serveur sur http://0.0.0.0:3000"
-echo "Appuyez sur Ctrl+C pour arrêter"
+# Dossiers runtime
+mkdir -p logs tmp
+
+# --- MONITOR WORKER (collecte métriques pour daily_report) ---
+start_monitor_worker() {
+    if [[ -f "tmp/monitor.pid" ]] && kill -0 "$(cat tmp/monitor.pid)" 2>/dev/null; then
+        echo "[MONITOR] Déjà lancé (pid=$(cat tmp/monitor.pid))"
+        return 0
+    fi
+
+    echo "[MONITOR] Démarrage du worker (1 run / 60s)..."
+    (
+        while true; do
+            bundle exec ./bin/monitor_tickets >> logs/monitor.log 2>&1
+            sleep 60
+        done
+    ) &
+    echo $! > tmp/monitor.pid
+    echo "[MONITOR] OK (pid=$(cat tmp/monitor.pid)) logs/monitor.log"
+}
+
+# --- APP SERVER ---
+start_app_server() {
+    if [[ -f "tmp/app.pid" ]] && kill -0 "$(cat tmp/app.pid)" 2>/dev/null; then
+        echo "[APP] Déjà lancé (pid=$(cat tmp/app.pid))"
+        return 0
+    fi
+
+    echo "[APP] Démarrage du serveur sur http://0.0.0.0:3000 ..."
+    bundle exec rackup -p 3000 --host 0.0.0.0 >> logs/app.log 2>&1 &
+    echo $! > tmp/app.pid
+    echo "[APP] OK (pid=$(cat tmp/app.pid)) logs/app.log"
+}
+
+start_monitor_worker
+start_app_server
+
+echo ""
+echo "[OK] Déploiement terminé."
+echo "  - App:     http://0.0.0.0:3000"
+echo "  - Logs:    logs/app.log, logs/monitor.log"
+echo "  - Stop:    ./scripts/stop_service.sh"
 echo ""
 
-bundle exec rackup -p 3000 --host 0.0.0.0
