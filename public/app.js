@@ -977,3 +977,4 @@ document.addEventListener('DOMContentLoaded', () => {
   checkUpdates(); // Appel unique ici
 });
 
+//test
