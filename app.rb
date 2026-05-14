@@ -137,6 +137,21 @@ get '/api/processes' do
   { processes: SystemMonitor.get_processes(sort, limit) }.to_json
 end
 
+delete '/api/processes/:pid' do
+  content_type :json
+  pid = params[:pid].to_i
+  begin
+    Process.kill('TERM', pid)
+    { success: true, message: "Signal TERM envoyé au PID #{pid}" }.to_json
+  rescue Errno::ESRCH
+    status 404
+    { success: false, error: "Processus #{pid} introuvable" }.to_json
+  rescue Errno::EPERM
+    status 403
+    { success: false, error: "Permission refusée pour le PID #{pid}" }.to_json
+  end
+end
+
 get '/api/disks' do
   content_type :json
   { disks: SystemMonitor.get_disks }.to_json

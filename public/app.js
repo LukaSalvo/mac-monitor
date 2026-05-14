@@ -165,14 +165,21 @@ function updateDashboard(filtered, latest) {
   document.getElementById('sys-platform').textContent = latest.platform ? `${latest.platform} ${latest.os || ''}` : 'Inconnu';
   document.getElementById('sys-cores').textContent = latest.cpu_cores ? `${latest.cpu_cores} cœurs` : 'Inconnu';
 
-  document.getElementById('cpu').textContent = (latest.cpu_usage || 0).toFixed(1) + '%';
+  const cpuVal = latest.cpu_usage || 0;
+  document.getElementById('cpu').textContent = cpuVal.toFixed(1) + '%';
+  setMetricBar('cpu-bar', cpuVal, 'cpu', 'card-cpu');
+
   document.getElementById('memory').textContent = `${formatBytes(latest.memory_used_bytes)} / ${formatBytes(latest.memory_total_bytes)}`;
+  setMetricBar('memory-bar', latest.memory_percent || 0, 'memory', 'card-memory');
 
   const diskData = selectedDisk || {
     used_bytes: latest.disk_used_bytes,
     total_bytes: latest.disk_total_bytes
   };
   document.getElementById('disk').textContent = `${formatBytes(diskData.used_bytes)} / ${formatBytes(diskData.total_bytes)}`;
+  const diskPercent = diskData.total_bytes > 0 ? (diskData.used_bytes / diskData.total_bytes * 100) : 0;
+  setMetricBar('disk-bar', diskPercent, 'disk', 'card-disk');
+
   document.getElementById('uptime').textContent = formatDuration(latest.uptime_seconds);
 
   const labels = filtered.map(d => new Date(d.timestamp * 1000).toLocaleTimeString());
@@ -294,8 +301,28 @@ function updateMemory(filtered, latest) {
   document.getElementById('mem-available').textContent = formatBytes(memAvailableBytes);
   document.getElementById('mem-max').textContent = formatBytes(Math.max(...memValues.map(v => v * k)));
   document.getElementById('mem-avg').textContent = avg.toFixed(2) + ' ' + unit;
-  document.getElementById('mem-growth').textContent = '0 MB/min';
-  document.getElementById('mem-estimate').textContent = 'Jamais';
+
+  if (filtered.length >= 2) {
+    const first = filtered[0];
+    const last = filtered[filtered.length - 1];
+    const timeDiffMin = (last.timestamp - first.timestamp) / 60;
+    if (timeDiffMin > 0) {
+      const bytesDiff = (last.memory_used_bytes || 0) - (first.memory_used_bytes || 0);
+      const growthPerMin = bytesDiff / timeDiffMin;
+      const sign = growthPerMin >= 0 ? '+' : '-';
+      document.getElementById('mem-growth').textContent = sign + formatBytes(Math.abs(growthPerMin)) + '/min';
+      if (growthPerMin > 0) {
+        const bytesLeft = (last.memory_total_bytes || 0) - (last.memory_used_bytes || 0);
+        const minLeft = bytesLeft / growthPerMin;
+        document.getElementById('mem-estimate').textContent = minLeft > 60 ? `${(minLeft / 60).toFixed(1)}h` : `${minLeft.toFixed(0)}min`;
+      } else {
+        document.getElementById('mem-estimate').textContent = 'Jamais';
+      }
+    }
+  } else {
+    document.getElementById('mem-growth').textContent = '0 B/min';
+    document.getElementById('mem-estimate').textContent = 'Jamais';
+  }
 
   updateChart('memDetailChart', {
     type: 'line',
@@ -812,43 +839,66 @@ async function fetchTickets() {
 
 async function closeTicket(ticketId) {
   if (!confirm('Fermer ce ticket ?')) return;
-
   try {
-    const response = await fetch(`/api/tickets/${ticketId}/close`, {
-      method: 'POST'
-    });
+    const response = await fetch(`/api/tickets/${ticketId}/close`, { method: 'POST' });
     const data = await response.json();
-
     if (data.success) {
-      fetchTickets(); // Recharger la liste
-      showNotification('✅ Ticket fermé avec succès');
+      fetchTickets();
+      showNotification('Ticket fermé avec succès', 'success');
     } else {
-      showNotification('❌ Erreur lors de la fermeture');
+      showNotification('Erreur lors de la fermeture', 'error');
     }
   } catch (error) {
-    console.error('Erreur:', error);
-    showNotification('❌ Erreur de connexion');
+    showNotification('Erreur de connexion', 'error');
   }
 }
 
-function showNotification(message) {
-  // Simple notification en haut de l'écran
+async function killProcess(pid) {
+  if (!confirm(`Terminer le processus PID ${pid} ?`)) return;
+  try {
+    const res = await fetch(`/api/processes/${pid}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.success) {
+      showNotification(data.message, 'success');
+      fetchProcesses();
+    } else {
+      showNotification(data.error || 'Permission refusée', 'error');
+    }
+  } catch (err) {
+    showNotification('Erreur de connexion', 'error');
+  }
+}
+
+function showNotification(message, type = 'success') {
   const notif = document.createElement('div');
+  notif.className = `notification-toast ${type}`;
   notif.textContent = message;
-  notif.style.cssText = `
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    background: #1e1e1e;
-    color: #4ec9b0;
-    padding: 15px 25px;
-    border-radius: 8px;
-    border: 1px solid #4ec9b0;
-    z-index: 10000;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-  `;
   document.body.appendChild(notif);
-  setTimeout(() => notif.remove(), 3000);
+  setTimeout(() => {
+    notif.style.animation = 'toastSlideOut 0.3s ease forwards';
+    setTimeout(() => notif.remove(), 300);
+  }, 3000);
+}
+
+function setMetricBar(barId, percent, valueId, cardId) {
+  const bar = document.getElementById(barId);
+  if (!bar) return;
+  const p = Math.min(100, Math.max(0, percent || 0));
+  bar.style.width = p + '%';
+  const color = p >= 85 ? '#ff6b35' : p >= 60 ? '#ffd700' : '#4ec9b0';
+  bar.style.backgroundColor = color;
+  const val = document.getElementById(valueId);
+  if (val) val.className = 'metric-value ' + (p >= 85 ? 'critical' : p >= 60 ? 'warning' : 'ok');
+  const card = document.getElementById(cardId);
+  if (card) card.classList.toggle('critical-state', p >= 85);
+}
+
+function startClock() {
+  const el = document.getElementById('top-clock');
+  if (!el) return;
+  const tick = () => { el.textContent = new Date().toLocaleTimeString('fr-FR'); };
+  tick();
+  setInterval(tick, 1000);
 }
 
 // Stress Test Functions
@@ -938,18 +988,6 @@ async function checkUpdates() {
 
       const banner = document.createElement('div');
       banner.id = 'update-banner';
-      banner.style.cssText = `
-        background: #ff6b35;
-        color: white;
-        padding: 12px;
-        text-align: center;
-        font-weight: bold;
-        position: sticky;
-        top: 0;
-        z-index: 10001;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-        font-family: sans-serif;
-      `;
       banner.innerHTML = `
         <i class="fas fa-cloud-download-alt"></i> 
         Une nouvelle version <span style="text-decoration: underline;">${data.remote}</span> est disponible ! 
@@ -967,6 +1005,7 @@ async function checkUpdates() {
 document.addEventListener('DOMContentLoaded', () => {
   initPrefs();
   initNav();
+  startClock();
   updateSettingsPage();
   switchPage('dashboard');
 
@@ -974,7 +1013,7 @@ document.addEventListener('DOMContentLoaded', () => {
   intervalID = setInterval(mainLoop, rate);
 
   fetchData();
-  checkUpdates(); // Appel unique ici
+  checkUpdates();
 });
 
 //test
