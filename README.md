@@ -141,6 +141,38 @@ Accessible via l'interface web : Alertes > Demarrer Stress Test
 
 ---
 
+### 11. Scanner Reseau Avance & Controle a Distance
+
+**Fichiers :** `lib/network_monitor.rb`, `lib/network_actions.rb`
+
+Le scanner reseau (`Outils > Scanner Reseau`) decouvre les appareils du LAN et remonte
+desormais davantage d'informations, plus des actions de controle a distance :
+
+**Decouverte enrichie :**
+- Adresse MAC + fabricant (vendor) via nmap, avec repli ARP (`arp -a` / `ip neigh`)
+- Latence (ping ICMP) mesuree pour chaque appareil
+- Detection de la machine locale
+
+**Actions sur les appareils :**
+
+| Action | Methode | Pre-requis |
+|--------|---------|------------|
+| Allumer (Wake-on-LAN) | Paquet magique UDP (ports 9/7, broadcast) | Carte reseau cible avec WoL active |
+| Eteindre / Redemarrer (Linux/macOS) | SSH (`sudo shutdown`) | Cle SSH autorisee ou `sshpass`, sudo sans mdp |
+| Eteindre / Redemarrer (Windows) | Samba `net rpc shutdown` | `net` installe cote serveur, compte admin distant |
+
+**Endpoints API :**
+- `GET  /api/network/scan` — scan complet (MAC, vendor, latence)
+- `GET  /api/network` — details des interfaces reseau locales
+- `GET  /api/network/ping/:ip` — ping d'un appareil
+- `POST /api/network/wake` — `{ "mac": "aa:bb:cc:dd:ee:ff" }`
+- `POST /api/network/shutdown` — `{ "ip", "os": "linux|mac|windows", "user", "password", "reboot" }`
+
+> ⚠️ Les actions d'arret/redemarrage exigent des identifiants valides sur la machine cible.
+> Aucun mot de passe n'est stocke : il est transmis a la demande pour executer la commande.
+
+---
+
 ### 10. Scripts Cron (Léo)
 
 **Fichiers :** `bin/monitor_tickets`, `bin/daily_report`
@@ -170,7 +202,8 @@ mac-monitor/
 |-- app.rb              # Serveur Sinatra
 |-- lib/                # Modules Ruby
 |   |-- system_monitor.rb
-|   |-- network_monitor.rb
+|   |-- network_monitor.rb   # Scan reseau + MAC/vendor/latence + interfaces
+|   |-- network_actions.rb   # Wake-on-LAN + arret distant (SSH/SMB)
 |   |-- ticket_store.rb
 |   |-- ticket_engine.rb
 |   |-- notifier.rb

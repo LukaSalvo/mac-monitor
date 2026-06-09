@@ -14,6 +14,7 @@ require_relative 'lib/ticket_store'
 require_relative 'lib/alert_manager'
 require_relative 'lib/log_watcher'
 require_relative 'lib/stress_tester'
+require_relative 'lib/network_actions'
 
 set :port, 3000
 set :bind, '0.0.0.0'
@@ -29,6 +30,14 @@ NMAP_PATH = "/usr/bin/nmap"
 
 
 
+
+# Parse le corps JSON d'une requête, renvoie un hash vide en cas d'échec.
+def parse_json_body
+  body = request.body.read
+  body.empty? ? {} : JSON.parse(body)
+rescue JSON::ParserError
+  {}
+end
 
 # --- AJOUT AU DÉBUT DU FICHIER app.rb ---
 
@@ -160,6 +169,45 @@ end
 get '/api/network/scan' do
   content_type :json
   { devices: NetworkMonitor.scan_network(SystemMonitor.get_local_ip, NMAP_PATH), local_ip: SystemMonitor.get_local_ip }.to_json
+end
+
+# Détails des interfaces réseau (consommé par la page Réseau).
+get '/api/network' do
+  content_type :json
+  NetworkMonitor.get_interfaces.to_json
+end
+
+# Ping d'un appareil (latence en ms).
+get '/api/network/ping/:ip' do
+  content_type :json
+  latency = NetworkMonitor.ping(params[:ip])
+  { ip: params[:ip], reachable: !latency.nil?, latency_ms: latency }.to_json
+end
+
+# Wake-on-LAN : allume un appareil via son adresse MAC.
+post '/api/network/wake' do
+  content_type :json
+  data = parse_json_body
+  mac = data['mac'] || params['mac']
+  result = NetworkActions.wake_on_lan(mac.to_s)
+  AlertManager.trigger("Wake-on-LAN", result[:message], result[:success] ? 'info' : 'warning') rescue nil
+  status 400 unless result[:success]
+  result.to_json
+end
+
+# Arrêt distant d'un appareil du réseau (SSH pour Linux/macOS, SMB pour Windows).
+post '/api/network/shutdown' do
+  content_type :json
+  data = parse_json_body
+  ip = data['ip'] || params['ip']
+  result = NetworkActions.shutdown_device(ip.to_s,
+    os: data['os'],
+    user: data['user'],
+    password: data['password'],
+    reboot: data['reboot'])
+  AlertManager.trigger("Arrêt distant", "#{ip} : #{result[:message]}", result[:success] ? 'info' : 'warning') rescue nil
+  status 400 unless result[:success]
+  result.to_json
 end
 
 get '/api/logs' do

@@ -3,7 +3,7 @@ app.log
 server.log
 *.log
 maintenance_check.log
-
+modified:   Gemfile.lock
 # Environment & Secrets
 .env
 config/email.yml
