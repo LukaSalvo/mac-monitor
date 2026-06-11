@@ -1,3 +1,20 @@
+// Palette système Apple — suit automatiquement le mode clair / sombre.
+// Les getters sont évalués à chaque rendu des graphiques (rafraîchissement périodique),
+// donc un changement d'apparence macOS est répercuté sans recharger la page.
+const darkMode = () => window.matchMedia('(prefers-color-scheme: dark)').matches;
+const C = {
+  get blue()      { return darkMode() ? '#0a84ff' : '#007aff'; },
+  get green()     { return darkMode() ? '#30d158' : '#34c759'; },
+  get orange()    { return darkMode() ? '#ff9f0a' : '#ff9500'; },
+  get red()       { return darkMode() ? '#ff453a' : '#ff3b30'; },
+  get teal()      { return darkMode() ? '#64d2ff' : '#5ac8fa'; },
+  get blueFill()  { return darkMode() ? 'rgba(10, 132, 255, 0.20)' : 'rgba(0, 122, 255, 0.10)'; },
+  get greenFill() { return darkMode() ? 'rgba(48, 209, 88, 0.20)' : 'rgba(52, 199, 89, 0.10)'; },
+  get label()     { return darkMode() ? '#98989d' : '#6e6e73'; },
+  get grid()      { return darkMode() ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)'; },
+  get surface()   { return darkMode() ? '#2a2a2c' : '#ffffff'; }
+};
+
 let charts = {};
 let currentPage = 'dashboard';
 let intervalID;
@@ -191,8 +208,8 @@ function updateDashboard(filtered, latest) {
       datasets: [{
         label: 'CPU %',
         data: filtered.map(d => d.cpu_usage || 0),
-        borderColor: '#7c8dff',
-        backgroundColor: 'rgba(124, 141, 255, 0.12)',
+        borderColor: C.blue,
+        backgroundColor: C.blueFill,
         tension: 0.4,
         fill: true
       }]
@@ -210,8 +227,8 @@ function updateDashboard(filtered, latest) {
       datasets: [{
         label: `Mémoire ${unit}`,
         data: filtered.map(d => (d.memory_used_bytes || 0) / k),
-        borderColor: '#2fe3bf',
-        backgroundColor: 'rgba(47, 227, 191, 0.12)',
+        borderColor: C.green,
+        backgroundColor: C.greenFill,
         tension: 0.4,
         fill: true
       }]
@@ -240,8 +257,8 @@ function updateCPU(filtered, latest) {
       datasets: [{
         label: 'Utilisation CPU %',
         data: cpuValues,
-        borderColor: '#7c8dff',
-        backgroundColor: 'rgba(124, 141, 255, 0.2)',
+        borderColor: C.blue,
+        backgroundColor: C.blueFill,
         tension: 0.4,
         fill: true
       }]
@@ -266,9 +283,9 @@ function updateCPU(filtered, latest) {
       labels: ['Élevée', 'Moyenne', 'Faible'],
       datasets: [{
         data: [high, medium, low],
-        backgroundColor: ['#ff5d73', '#ffc24b', '#2fe3bf'],
+        backgroundColor: [C.red, C.orange, C.green],
         borderWidth: 2,
-        borderColor: '#0d1119'
+        borderColor: C.surface
       }]
     },
     options: {
@@ -277,7 +294,7 @@ function updateCPU(filtered, latest) {
       plugins: {
         legend: {
           labels: {
-            color: '#9aa6b6'
+            color: C.label
           },
           position: 'bottom'
         }
@@ -331,8 +348,8 @@ function updateMemory(filtered, latest) {
       datasets: [{
         label: `Mémoire ${unit}`,
         data: memValues,
-        borderColor: '#2fe3bf',
-        backgroundColor: 'rgba(47, 227, 191, 0.2)',
+        borderColor: C.green,
+        backgroundColor: C.greenFill,
         tension: 0.4,
         fill: true
       }]
@@ -346,7 +363,7 @@ function updateMemory(filtered, latest) {
       labels: ['Utilisée', 'Disponible'],
       datasets: [{
         data: [memUsedBytes, memAvailableBytes],
-        backgroundColor: ['#7c8dff', '#2fe3bf']
+        backgroundColor: [C.blue, C.green]
       }]
     },
     options: {
@@ -355,7 +372,7 @@ function updateMemory(filtered, latest) {
       plugins: {
         legend: {
           labels: {
-            color: '#9aa6b6'
+            color: C.label
           }
         }
       }
@@ -389,7 +406,7 @@ function updateDisk(filtered, latest) {
       labels: ['Utilisé', 'Libre'],
       datasets: [{
         data: [used, free],
-        backgroundColor: ['#7c8dff', '#2fe3bf']
+        backgroundColor: [C.blue, C.green]
       }]
     },
     options: {
@@ -398,7 +415,7 @@ function updateDisk(filtered, latest) {
       plugins: {
         legend: {
           labels: {
-            color: '#9aa6b6'
+            color: C.label
           }
         }
       }
@@ -412,11 +429,11 @@ function updateDisk(filtered, latest) {
       datasets: [{
         label: 'Utilisé',
         data: [used],
-        backgroundColor: '#7c8dff'
+        backgroundColor: C.blue
       }, {
         label: 'Libre',
         data: [free],
-        backgroundColor: '#2fe3bf'
+        backgroundColor: C.green
       }]
     },
     options: {
@@ -427,26 +444,26 @@ function updateDisk(filtered, latest) {
         x: {
           stacked: true,
           ticks: {
-            color: '#9aa6b6'
+            color: C.label
           },
           grid: {
-            color: 'rgba(255,255,255,0.06)'
+            color: C.grid
           }
         },
         y: {
           stacked: true,
           ticks: {
-            color: '#9aa6b6'
+            color: C.label
           },
           grid: {
-            color: 'rgba(255,255,255,0.06)'
+            color: C.grid
           }
         }
       },
       plugins: {
         legend: {
           labels: {
-            color: '#9aa6b6'
+            color: C.label
           }
         }
       }
@@ -499,16 +516,16 @@ async function updateNetwork(filtered, latest) {
       datasets: [{
         label: `Envoi (${unitPref === 'decimal' ? 'KB/s' : 'KiB/s'})`,
         data: sentData,
-        borderColor: '#7c8dff',
-        backgroundColor: 'rgba(124, 141, 255, 0.12)',
+        borderColor: C.blue,
+        backgroundColor: C.blueFill,
         tension: 0.4,
         fill: true
       },
       {
         label: `Réception (${unitPref === 'decimal' ? 'KB/s' : 'KiB/s'})`,
         data: recvData,
-        borderColor: '#2fe3bf',
-        backgroundColor: 'rgba(47, 227, 191, 0.12)',
+        borderColor: C.green,
+        backgroundColor: C.greenFill,
         tension: 0.4,
         fill: true
       }
@@ -530,7 +547,7 @@ async function updateNetwork(filtered, latest) {
         html += '</div>';
         container.innerHTML = html;
       } else {
-        container.innerHTML = '<div class="chart-header"><h3><i class="fas fa-list"></i> Détails Interfaces</h3></div><p style="padding: 20px; color: #9aa6b6;">Aucune interface réseau trouvée (hors loopback).</p>';
+        container.innerHTML = '<div class="chart-header"><h3><i class="fas fa-list"></i> Détails Interfaces</h3></div><p style="padding: 20px; color: var(--text-dim);">Aucune interface réseau trouvée (hors loopback).</p>';
       }
     }
   } catch (err) {
@@ -592,7 +609,7 @@ async function scanNetwork() {
 
         let actions = '';
         if (dev.is_local) {
-          actions = '<span style="color:#5b6675;">--</span>';
+          actions = '<span style="color:var(--text-faint);">--</span>';
         } else {
           const wakeBtn = dev.mac
             ? `<button class="btn-net wake" title="Allumer (Wake-on-LAN)" onclick="wakeDevice('${macAttr}', '${ipAttr}')"><i class="fas fa-power-off"></i></button>`
@@ -604,7 +621,7 @@ async function scanNetwork() {
         html += `<tr>
             <td><span class="status-badge up">En ligne</span></td>
             <td>${typeChip}</td>
-            <td style="color:#2fe3bf; font-family:monospace;">${dev.ip}</td>
+            <td style="color:var(--blue); font-family:var(--font-mono);">${dev.ip}</td>
             <td>${dev.hostname || '--'}${isLocal}</td>
             <td style="font-family:monospace;">${dev.mac || '--'}</td>
             <td>${dev.vendor || '--'}</td>
@@ -669,7 +686,7 @@ function openShutdownModal(ip) {
         <label class="modal-label">Utilisateur</label>
         <input id="sd-user" type="text" class="modal-input" placeholder="ex: admin / root" autocomplete="off">
 
-        <label class="modal-label">Mot de passe <span style="color:#9aa6b6; font-weight:400;">(vide = clé SSH)</span></label>
+        <label class="modal-label">Mot de passe <span style="color:var(--text-dim); font-weight:400;">(vide = clé SSH)</span></label>
         <input id="sd-pass" type="password" class="modal-input" placeholder="••••••" autocomplete="off">
 
         <label class="modal-checkbox">
@@ -683,7 +700,7 @@ function openShutdownModal(ip) {
       </div>
       <div class="modal-footer">
         <button class="btn-secondary" onclick="document.getElementById('shutdown-modal').remove()">Annuler</button>
-        <button class="btn-primary" id="sd-confirm" style="background:#e74c3c;"><i class="fas fa-power-off"></i> Confirmer</button>
+        <button class="btn-primary" id="sd-confirm" style="background:var(--red);"><i class="fas fa-power-off"></i> Confirmer</button>
       </div>
     </div>`;
 
@@ -750,7 +767,7 @@ async function fetchProcesses() {
         const cpuClass = proc.cpu > 50 ? 'high' : (proc.cpu > 20 ? 'medium' : 'low');
         const memClass = proc.mem > 50 ? 'high' : (proc.mem > 20 ? 'medium' : 'low');
         html += `<tr>
-            <td style="color:#9aa6b6;">${proc.pid}</td>
+            <td style="color:var(--text-dim);">${proc.pid}</td>
             <td>${proc.user}</td>
             <td><span class="metric-badge ${cpuClass}">${proc.cpu.toFixed(1)}%</span></td>
             <td><span class="metric-badge ${memClass}">${proc.mem.toFixed(1)}%</span></td>
@@ -795,7 +812,7 @@ async function fetchAlerts() {
       html += '</div>';
       container.innerHTML = html;
     } else {
-      container.innerHTML = `<div class="empty-state"><i class="fas fa-check-circle" style="color:#2fe3bf;"></i><p>Système sain.</p></div>`;
+      container.innerHTML = `<div class="empty-state"><i class="fas fa-check-circle" style="color:var(--green);"></i><p>Système sain.</p></div>`;
     }
   } catch (err) {
     console.error(err);
@@ -847,7 +864,7 @@ function getChartOptions(extra = {}) {
     plugins: {
       legend: {
         labels: {
-          color: '#9aa6b6',
+          color: C.label,
           font: {
             size: 12
           }
@@ -857,20 +874,20 @@ function getChartOptions(extra = {}) {
     scales: {
       x: {
         ticks: {
-          color: '#9aa6b6',
+          color: C.label,
           maxRotation: 45,
           minRotation: 45
         },
         grid: {
-          color: 'rgba(255,255,255,0.06)'
+          color: C.grid
         }
       },
       y: {
         ticks: {
-          color: '#9aa6b6'
+          color: C.label
         },
         grid: {
-          color: 'rgba(255,255,255,0.06)'
+          color: C.grid
         },
         beginAtZero: true,
         ...extra
@@ -948,10 +965,10 @@ async function fetchTickets() {
         const dateStr = new Date(ticket.timestamp * 1000).toLocaleString();
         const closeBtn = ticket.status === 'open' ?
           `<button class="btn-close-ticket" onclick="closeTicket('${ticket.id}')">Fermer</button>` :
-          '<span style="color:#666;">-</span>';
+          '<span style="color:var(--text-faint);">-</span>';
 
         html += `<tr>
-            <td style="color:#9aa6b6;">#${ticket.id}</td>
+            <td style="color:var(--text-dim);">#${ticket.id}</td>
             <td>${dateStr}</td>
             <td><span class="metric-badge ${levelClass}">${ticket.level}</span></td>
             <td><strong>${ticket.title}</strong></td>
@@ -1016,7 +1033,7 @@ function setMetricBar(barId, percent, valueId, cardId) {
   if (!bar) return;
   const p = Math.min(100, Math.max(0, percent || 0));
   bar.style.width = p + '%';
-  const color = p >= 85 ? '#ff5d73' : p >= 60 ? '#ffc24b' : '#2fe3bf';
+  const color = p >= 85 ? C.red : p >= 60 ? C.orange : C.green;
   bar.style.backgroundColor = color;
   const val = document.getElementById(valueId);
   if (val) val.className = 'metric-value ' + (p >= 85 ? 'critical' : p >= 60 ? 'warning' : 'ok');
@@ -1049,7 +1066,7 @@ async function startStressTest() {
       startBtn.disabled = true;
       stopBtn.disabled = false;
       status.textContent = '⚡ Stress test en cours...';
-      status.style.color = '#7c8dff';
+      status.style.color = C.blue;
       startBtn.innerHTML = '<i class="fas fa-play"></i> Démarrer Stress Test';
     } else {
       status.textContent = '❌ ' + data.message;
@@ -1079,7 +1096,7 @@ async function stopStressTest() {
       startBtn.disabled = false;
       stopBtn.disabled = true;
       status.textContent = '✅ Stress test arrêté';
-      status.style.color = '#2fe3bf';
+      status.style.color = C.green;
       stopBtn.innerHTML = '<i class="fas fa-stop"></i> Arrêter Stress Test';
     } else {
       status.textContent = '❌ ' + data.message;
@@ -1123,7 +1140,7 @@ async function checkUpdates() {
         <i class="fas fa-cloud-download-alt"></i> 
         Une nouvelle version <span style="text-decoration: underline;">${data.remote}</span> est disponible ! 
         Lancez <code>git pull</code> & <code>./deploy.sh</code> pour mettre à jour.
-        <button onclick="this.parentElement.remove()" style="margin-left:15px; background:transparent; border:1px solid white; color:white; border-radius:4px; cursor:pointer; padding:2px 8px;">Ignorer</button>
+        <button onclick="this.parentElement.remove()">Ignorer</button>
       `;
       document.body.prepend(banner);
     }
